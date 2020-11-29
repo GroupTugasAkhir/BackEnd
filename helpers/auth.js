@@ -10,6 +10,7 @@ module.exports = {
                 }
                 // console.log(decoded, 'ini decoded')
                 req.user = decoded;
+                console.log(decoded);
                 next();
             })
         } else{
