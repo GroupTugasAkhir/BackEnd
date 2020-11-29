@@ -18,4 +18,6 @@ app.use(bearerToken())
 const {authRoutes} = require('./routes')
 app.use('/auth',authRoutes)
 
+//test aja
+
 app.listen(5001,()=>console.log('port 5000 is active'))
