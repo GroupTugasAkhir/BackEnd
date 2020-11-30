@@ -66,16 +66,17 @@ module.exports = {
         console.log(password)
         let hashPassword = encrypt(password)
         console.log(hashPassword)
-        let sql = "select * from users where email = ? and password = ?"
+        let sql = "select * from tbl_user where email = ? and password = ?"
         db.query(sql,[email, hashPassword],(err,result)=>{
-            if(err) return res.send({message:err.message})
+            if(err) return res.status(500).send({message:err.message})
             if(!result.length) return res.status(500).send({message:'user tidak terdaftar'})
-            sql = "select * from users where email = ? and password = ? and isVerified=1"
-            db.query(sql,[email, hashPassword],(err,result2)=>{
+            
+            sql = "select * from tbl_user where email = ? and password = ? and isVerified = 1"
+            db.query(sql,[email, hashPassword],(err, result2)=>{
                 if(err) return res.send({message:err.message})
-                sql = `update users set ? where user_id = ${db.escape(result[0].user_id)}`
+                sql = `update tbl_user set ? where user_id = ${db.escape(result2[0].user_id)}`
                 let data = {
-                    last_login: Date.now()
+                    date_created: Date.now()
                 }
                 db.query(sql,data,(err)=>{
                     if(err) return res.status(500).send({message:err.message})
@@ -91,10 +92,10 @@ module.exports = {
         let editData = {
             isVerified: 1
         }
-        let sql = `update users set ? where user_id=${db.escape(id)}`
+        let sql = `update tbl_user set ? where user_id=${db.escape(id)}`
         db.query(sql,editData,(err)=>{
             if(err) return res.status(500).send({message:err.message})
-            sql = `select * from users where user_id=${db.escape(id)}`
+            sql = `select * from tbl_user where user_id=${db.escape(id)}`
             db.query(sql,(err,result)=>{
                 if(err) return res.status(500).send({message:err.message})
                 result[0].token = req.token
@@ -104,12 +105,45 @@ module.exports = {
     },
     keepLogin:(req,res)=>{
         const {user_id}=req.params
-        let sql='select * from users where user_id = ?'
+        let sql='select * from tbl_user where user_id = ?'
         db.query(sql,[user_id],(err,datauser)=>{
             if(err) return res.status(500).send({message:err.message})
             // const token=createJWToken({user_id:datauser[0].user_id,username:datauser[0].username})
             // datauser[0].token=token
             return res.send(datauser[0])
+        })
+    },
+    firebaseauth: (req, res)=> {
+        const {username, email, password, photo} = req.body
+        let sql = 'select * from tbl_user where password = ?'
+        db.query(sql, [password], (err, datauser)=> {
+            if(err) return res.status('500').send({message:err})
+            if(!datauser.length) {
+                let data = {
+                    username,
+                    password: password,
+                    email,
+                    isVerified: 1 ,
+                    photo: photo,
+                    role_id: 3,
+                    date_created: Date.now()
+                }
+
+                sql = 'insert into tbl_user set ?'
+                db.query(sql, data, (err, result)=> {
+                    if(err) return res.status('500').send({message:err})
+
+                    sql = 'select * from tbl_user where user_id = ?'
+                    db.query(sql, [result.insertId],(err, user_data) => {
+                        if(err) return res.status(500).send({message:err.message})
+                        
+                        const token = createJWToken({user_id:user_data[0].user_id, username:user_data[0].username })
+                        return res.send(user_data[0])
+                    })
+                })
+            } else {
+                return res.send(datauser[0])
+            }
         })
     }
 }
