@@ -1,0 +1,55 @@
+const {db} = require('../connection')
+const {uploader} = require('../helpers/uploader')
+const fs = require('fs')
+
+module.exports = {
+    addProduct: (req, res) => {
+        try {
+            console.log('asas')
+            const path = '/product'
+            const upload = uploader(path, 'PROD').fields([{name: 'image'}])
+            upload(req, res, (err)=>{
+                if (err){
+                    return res.status(500).json({message: 'Upload picture failed', error: err.message})
+                }
+                console.log('berhasil upload')
+                const {image} = req.files
+                console.log(image)
+                const imagePath = image ? path + '/' + image[0].filename : null
+                console.log(imagePath)
+                console.log(req.body.data)
+                const data = JSON.parse(req.body.data)
+                let dataInsert = {
+                    product_name: data.product_name,
+                    price: data.price,
+                    image:imagePath,
+                    description: data.description
+                }
+                console.log(dataInsert)
+                db.query(`insert into tbl_product set ?`, dataInsert, (err)=>{
+                    if(err) {
+                        if(imagePath){
+                            fs.unlinkSync('./public' + imagePath)
+                        }
+                        return res.status(500).send(err)
+                    }
+                    db.query(`select * from tbl_product`, (err, dataProduct)=>{
+                        if (err) return res.status(500).send(err)
+                        return res.status(200).send(dataProduct)
+                    })
+                })
+            })
+        }catch(error){
+            console.log('eror')
+            return res.status(500).send(error)
+        }
+    },
+
+    getProduct: (req, res)=>{
+        let sql = `select * from tbl_product`
+        db.query(sql, (err, dataproduct)=>{
+            if (err) return res.status(500).send(err)
+            return res.status(200).send(dataproduct)
+        })
+    },
+}

@@ -15,7 +15,13 @@ require('dotenv').config()
 app.use(cors())
 app.use(bearerToken())
 
-const {authRoutes} = require('./routes')
-app.use('/auth',authRoutes)
+app.get('/', (req, res)=>{
+    res.send('<h1> Welcome to API AKEI</h1>')
+})
 
-app.listen(5001,()=>console.log('port 5000 is active'))
+const {authRoutes, ProductRoutes} = require('./routes')
+
+app.use('/auth',authRoutes)
+app.use('/product', ProductRoutes)
+
+app.listen(5001,()=>console.log('port 5001 is active'))
