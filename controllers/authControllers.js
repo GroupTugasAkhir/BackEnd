@@ -116,15 +116,15 @@ module.exports = {
     firebaseauth: (req, res)=> {
         const {username, email, password, photo} = req.body
         let sql = 'select * from tbl_user where password = ?'
-        db.query(sql, [password], (err, datauser)=> {
+        db.query(sql, [email], (err, datauser)=> {
             if(err) return res.status('500').send({message:err})
             if(!datauser.length) {
                 let data = {
                     username,
-                    password: password,
+                    password,
                     email,
                     isVerified: 1 ,
-                    photo: photo,
+                    photo,
                     role_id: 3,
                     date_created: Date.now()
                 }
