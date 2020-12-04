@@ -4,5 +4,6 @@ const AdminRoutes = require('./AdminRoutes')
 module.exports = {
     authRoutes,
     AdminRoutes,
-    CartRoutes: require('./CartRoutes')
+    CartRoutes: require('./CartRoutes'),
+    TransactionRoutes: require('./TransactionRoutes'),
 }

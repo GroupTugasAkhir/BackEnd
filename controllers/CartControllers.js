@@ -20,7 +20,7 @@ module.exports = {
             quantity: quantity
         }
         let sql = `update tbl_transaction_detail set ? where transaction_id = ? and product_id = ?`
-        db.query(sql, [updateQty, idtrans, idprod], (err, cartData)=> {
+        db.query(sql, [updateQty, idtrans, idprod], (err)=> {
             if(err) return res.status(500).send({message:err.message})
             return res.send('updated')
         })

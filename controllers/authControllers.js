@@ -32,7 +32,7 @@ module.exports = {
                     email,
                     isVerified:0,
                     photo:'/users/default.png',
-                    role_id: 3,
+                    role_id: 2,
                     date_created: Date.now()
                 }
                 sql = 'insert into tbl_user set ?'
@@ -163,7 +163,7 @@ module.exports = {
                         where status = 'onCart' and tt.user_id = ?`
 
                         db.query(sql, [user_data[0].id], (err, cartData)=> {
-                            if(err) return res.status('500').send({message:err})
+                            if(err) return res.status('500').send({message:err.message})
         
                             const token = createJWToken({user_id:user_data[0].user_id, username:user_data[0].username })
                             user_data[0].token = token
