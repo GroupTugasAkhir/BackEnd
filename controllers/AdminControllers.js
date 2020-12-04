@@ -54,7 +54,14 @@ module.exports = {
             sql = `select * from tbl_category`
             db.query(sql, (err, datacategory)=>{
                 if (err) return res.status(500).send(err)
-                return res.status(200).send({dataproduct, datacategory})
+
+                sql = `select p.product_id, c.category_id, p.product_name, c.category_name
+                from tbl_category c join ref_product_category pc on c.category_id = pc.category_id
+                join tbl_product p on pc.product_id = p.product_id ;`
+                db.query(sql, (err, datarefcategory)=>{
+                    if (err) return res.status(500).send(err)
+                    return res.status(200).send({dataproduct, datacategory, datarefcategory})
+                })
             })
         })
     },
@@ -219,6 +226,20 @@ module.exports = {
     },
 
     //========================================= CATEGORY ========================================
+
+    addCategory: (req, res) => {
+        let data = req.body
+        let sql = `insert into tbl_category set ?`
+            db.query(sql,data,(err)=>{
+                if(err) return res.status(500).send(err)
+                
+                sql = `select * from tbl_category`
+                db.query(sql, (err,results)=>{
+                    if(err)return res.status(500).send(err)
+                    return res.status(200).send(results)
+                })
+        })
+    },
 
     editCategory: (req, res)=>{
         let data = req.body

@@ -14,6 +14,7 @@ Router.put('/editWHProduct/:id', AdminControllers.editWHProduct)
 Router.delete('/deleteWHProduct/:id', AdminControllers.deleteWHProduct)
 
 //For category
+Router.post('/addCategory', AdminControllers.addCategory)
 Router.put('/editCategory/:id', AdminControllers.editCategory)
 Router.delete('/deleteCategory/:id', AdminControllers.deleteCategory)
 
