@@ -4,6 +4,11 @@ const {AdminControllers} = require('../controllers')
 
 Router.post('/addProduct', AdminControllers.addProduct)
 Router.get('/getProduct', AdminControllers.getProduct)
+Router.get('/getProductbyPage/:page', AdminControllers.getProductbyPage)
+Router.get('/getProduct/:category', AdminControllers.getProductbyCategory)
+Router.get('/newArrival', AdminControllers.getProductbyNewArrival)
+Router.get('/popular', AdminControllers.getProductbyPopular)
+Router.get('/category', AdminControllers.getCategory)
 Router.put('/editProduct/:id', AdminControllers.editProduct)
 Router.delete('/deleteProduct/:id', AdminControllers.deleteProduct)
 
