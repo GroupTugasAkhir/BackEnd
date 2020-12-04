@@ -1,7 +1,7 @@
 const authRoutes = require('./authRoutes')
-const ProductRoutes = require('./ProductRoutes')
+const AdminRoutes = require('./AdminRoutes')
 
 module.exports = {
     authRoutes,
-    ProductRoutes
+    AdminRoutes
 }
