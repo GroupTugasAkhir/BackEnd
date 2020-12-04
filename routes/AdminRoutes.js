@@ -13,4 +13,8 @@ Router.get('/getWHProduct', AdminControllers.getWHProduct)
 Router.put('/editWHProduct/:id', AdminControllers.editWHProduct)
 Router.delete('/deleteWHProduct/:id', AdminControllers.deleteWHProduct)
 
+//For category
+Router.put('/editCategory/:id', AdminControllers.editCategory)
+Router.delete('/deleteCategory/:id', AdminControllers.deleteCategory)
+
 module.exports = Router

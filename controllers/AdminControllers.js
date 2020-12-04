@@ -46,10 +46,16 @@ module.exports = {
     },
 
     getProduct: (req, res)=>{
+        // get product and category
         let sql = `select * from tbl_product`
         db.query(sql, (err, dataproduct)=>{
             if (err) return res.status(500).send(err)
-            return res.status(200).send(dataproduct)
+            
+            sql = `select * from tbl_category`
+            db.query(sql, (err, datacategory)=>{
+                if (err) return res.status(500).send(err)
+                return res.status(200).send({dataproduct, datacategory})
+            })
         })
     },
 
@@ -210,6 +216,53 @@ module.exports = {
                 return res.status(500).send('product tidak ada')
             }
         })
-    }
+    },
 
+    //========================================= CATEGORY ========================================
+
+    editCategory: (req, res)=>{
+        let data = req.body
+        const {id} = req.params
+        let sql = `Select * from tbl_category where category_id = ${db.escape(id)}`
+        db.query(sql, (err, results)=>{
+            if(err)return res.status(500).send(err)
+
+            if(results.length){
+                sql = `Update tbl_category set ? where category_id = ${db.escape(id)}`
+                db.query(sql, data, (err)=>{
+                    if(err)return res.status(500).send(err)
+                    sql = `Select * from tbl_category`
+                    db.query(sql, (err, categories)=>{
+                        if(err)return res.status(500).send(err)
+                        return res.status(200).send(categories)
+                    })
+                })
+            }else{
+                return res.status(500).send('category tidak ada')
+            }
+        })
+    },
+
+    deleteCategory: (req, res) => {
+        const {id} = req.params
+        let sql = `Select * from tbl_category where category_id = ${db.escape(id)}`
+        db.query(sql, (err, results)=>{
+            if(err)return res.status(500).send(err)
+            if(results.length){
+                sql = `delete from tbl_category where category_id = ${db.escape(id)}`
+                db.query(sql, (err)=>{
+                    if(err)return res.status(500).send(err)
+
+                    sql = `Select * from tbl_category`
+                    db.query(sql, (err, categories)=>{
+                        if(err)return res.status(500).send(err)
+                        return res.status(200).send(categories)
+                    })
+                })
+            }else{
+                return res.status(500).send('category tidak ada')
+            }
+        })
+    },
 }
+
