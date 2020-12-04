@@ -78,11 +78,24 @@ module.exports = {
                 let data = {
                     date_created: Date.now()
                 }
+
                 db.query(sql,data,(err)=>{
                     if(err) return res.status(500).send({message:err.message})
-                    const token = createJWToken({user_id:result[0].user_id,username:result[0].username})
-                    result[0].token = token
-                    return res.send(result[0])
+
+                    //EDIT LATER, IT IS JUST DUMMY DATA (START)
+                    sql = `select tp.product_name, tp.price, tp.image, ttd.quantity, tp.product_id as idprod, tt.transaction_id as idtrans from tbl_product tp
+                    join tbl_transaction_detail ttd on tp.product_id = ttd.product_id
+                    join tbl_transaction tt on tt.transaction_id = ttd.transaction_id
+                    where status = 'onCart' and tt.user_id = ?`
+
+                    db.query(sql, [1], (err, cartData)=> {
+                        if(err) return res.status(500).send({message:err.message})
+
+                        const token = createJWToken({user_id:result[0].user_id,username:result[0].username})
+                        result[0].token = token
+                        return res.send({dataLogin: result[0], dataCart: cartData})
+                    })
+                    //EDIT LATER, IT IS JUST DUMMY DATA (END)
                 })
             })
         })
@@ -110,7 +123,14 @@ module.exports = {
             if(err) return res.status(500).send({message:err.message})
             // const token=createJWToken({user_id:datauser[0].user_id,username:datauser[0].username})
             // datauser[0].token=token
-            return res.send(datauser[0])
+            sql = `select tp.product_name, tp.price, tp.image, ttd.quantity, tp.product_id as idprod, tt.transaction_id as idtrans from tbl_product tp
+            join tbl_transaction_detail ttd on tp.product_id = ttd.product_id
+            join tbl_transaction tt on tt.transaction_id = ttd.transaction_id
+            where status = 'onCart' and tt.user_id = ?`
+            db.query(sql, [datauser[0].user_id], (err, cartData)=> {
+                if(err) return res.status(500).send({message:err.message})
+                return res.send({dataLogin: datauser[0], dataCart: cartData})
+            })
         })
     },
     firebaseauth: (req, res)=> {
@@ -125,7 +145,7 @@ module.exports = {
                     email,
                     isVerified: 1 ,
                     photo,
-                    role_id: 3,
+                    role_id: 1,
                     date_created: Date.now()
                 }
 
@@ -137,13 +157,32 @@ module.exports = {
                     db.query(sql, [result.insertId],(err, user_data) => {
                         if(err) return res.status(500).send({message:err.message})
                         
-                        const token = createJWToken({user_id:user_data[0].user_id, username:user_data[0].username })
-                        return res.send(user_data[0])
+                        sql = `select tp.product_name, tp.price, tp.image, ttd.quantity, tp.product_id as idprod, tt.transaction_id as idtrans from tbl_product tp
+                        join tbl_transaction_detail ttd on tp.product_id = ttd.product_id
+                        join tbl_transaction tt on tt.transaction_id = ttd.transaction_id
+                        where status = 'onCart' and tt.user_id = ?`
+
+                        db.query(sql, [user_data[0].id], (err, cartData)=> {
+                            if(err) return res.status('500').send({message:err})
+        
+                            const token = createJWToken({user_id:user_data[0].user_id, username:user_data[0].username })
+                            user_data[0].token = token
+                            return res.send({dataLogin: user_data[0], dataCart: cartData})
+                        })
+
                     })
                 })
             } else {
-                console.log(datauser[0]);
-                return res.send(datauser[0])
+                sql = `select tp.product_name, tp.price, tp.image, ttd.quantity, tp.product_id as idprod, tt.transaction_id as idtrans from tbl_product tp
+                join tbl_transaction_detail ttd on tp.product_id = ttd.product_id
+                join tbl_transaction tt on tt.transaction_id = ttd.transaction_id
+                where status = 'onCart' and tt.user_id = ?`
+
+                db.query(sql, [datauser[0].id], (err, cartData)=> {
+                    if(err) return res.status('500').send({message:err})
+
+                    return res.send({dataLogin: datauser[0], dataCart: cartData})
+                })
             }
         })
     }
