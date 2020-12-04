@@ -55,7 +55,7 @@ module.exports = {
 
     getProductbyId: (req, res)=>{
         const {id} = req.params
-        let sql = `SELECT p.product_id, p.image, p.price, p.product_name, c.category_id, c.category_name FROM ref_product_category pc
+        let sql = `SELECT p.product_id, p.description, p.image, p.price, p.product_name, c.category_id, c.category_name FROM ref_product_category pc
         inner join tbl_product p
         on p.product_id = pc.product_id
         inner join tbl_category c
@@ -78,7 +78,7 @@ module.exports = {
 
     getProductbyCategory:(req,res)=>{
         const {category} = req.params
-        let sql =`SELECT p.product_id, p.image, p.product_name, c.category_id, c.category_name FROM ref_product_category pc
+        let sql =`SELECT p.product_id, p.image, p.price, p.product_name, c.category_id, c.category_name FROM ref_product_category pc
         inner join tbl_product p
         on p.product_id = pc.product_id
         inner join tbl_category c
