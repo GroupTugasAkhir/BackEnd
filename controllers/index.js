@@ -1,7 +1,7 @@
 const authControllers = require('./authControllers')
-const ProductControllers = require('./ProductControllers')
+const AdminControllers = require('./AdminControllers')
 
 module.exports = {
     authControllers,
-    ProductControllers
+    AdminControllers
 }
