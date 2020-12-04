@@ -3,5 +3,6 @@ const ProductRoutes = require('./ProductRoutes')
 
 module.exports = {
     authRoutes,
-    ProductRoutes
+    ProductRoutes,
+    CartRoutes: require('./CartRoutes')
 }
