@@ -3,5 +3,7 @@ const AdminRoutes = require('./AdminRoutes')
 
 module.exports = {
     authRoutes,
-    AdminRoutes
+    AdminRoutes,
+    CartRoutes: require('./CartRoutes'),
+    TransactionRoutes: require('./TransactionRoutes'),
 }
