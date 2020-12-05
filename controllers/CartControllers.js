@@ -10,8 +10,13 @@ module.exports = {
 
         db.query(sql, [user_id], (err, cartData)=> {
             if(err) return res.status(500).send({message:err.message})
+    
+            sql = `select latitude, longitude from tbl_location`
+            db.query(sql, (err, locationData)=> {
+                if(err) return res.status(500).send({message:err.message})
 
-            return res.send(cartData)
+                return res.send({cartData: cartData, locationData: locationData})
+            })
         })
     },
     updateCart: (req, res)=> {

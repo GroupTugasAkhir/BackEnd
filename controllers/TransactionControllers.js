@@ -14,18 +14,37 @@ const queryProm = (sql) => {
 
 module.exports = {
     onpaycc: (req, res)=> {
-        const {idtrans, ccNumber} = req.body
-        let sql = `update tbl_transaction set ? where id = ${db.escape(idtrans)}`
-        let updateTransData = {
-            date_in: Date.now(),
-            status: 'completed',
-            payment_proof: ccNumber
+        const {user_id, idtrans, payment_proof, notes, matchLoc} = req.body
+
+        console.log(matchLoc.longitude);
+        console.log(matchLoc.latitude);
+
+        let idUser = {
+            notes: notes
         }
 
-        db.query(sql, updateTransData, (err)=> {
-            if (err) return res.status(500).send(err)
+        let sql = `update tbl_user set ? where user_id = ${db.escape(user_id)}`
+        db.query(sql, [idUser], (err)=> {
+            if (err) return res.status(500).send({message:err.message})
 
-            return res.send('berhasil') //tidak perlu getcart lagi karena jika berhasil, di front otomatis kosong
+            sql = `select * from tbl_location where longitude = ? and latitude = ?`
+            db.query(sql, [matchLoc.longitude, matchLoc.latitude], (err, locationRes)=> {
+                if (err) return res.status(500).send({message:err.message})
+
+                sql = `update tbl_transaction set ? where transaction_id = ${db.escape(idtrans)}`
+                let updateTransData = {
+                    date_in: Date.now(),
+                    status: 'completed',
+                    payment_proof,
+                    location_id: locationRes[0].location_id
+                }
+        
+                db.query(sql, updateTransData, (err)=> {
+                    if (err) return res.status(500).send({message:err.message})
+        
+                    return res.send('berhasil') //tidak perlu getcart lagi karena jika berhasil, di front otomatis kosong
+                })
+            })
         })
     }
 }
