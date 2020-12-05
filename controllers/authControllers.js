@@ -118,7 +118,7 @@ module.exports = {
         const {user_id}=req.params
         let sql='select * from tbl_user where user_id = ?'
         db.query(sql,[user_id],(err,datauser)=>{
-            if(err) return res.status(500).send({message:err.message})
+            if(err) return res.status(500).send(err)
             // const token=createJWToken({user_id:datauser[0].user_id,username:datauser[0].username})
             // datauser[0].token=token
             sql = `select tp.product_name, tp.price, tp.image, ttd.quantity, tp.product_id as idprod, tt.transaction_id as idtrans from tbl_product tp
