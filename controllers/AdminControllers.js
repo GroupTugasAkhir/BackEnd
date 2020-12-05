@@ -53,6 +53,86 @@ module.exports = {
         })
     },
 
+    getProductbySearch: (req, res)=>{
+        const {key} = req.params
+        let sql = `SELECT p.product_id, p.image, p.price, p.product_name, c.category_id, c.category_name FROM ref_product_category pc
+        inner join tbl_product p
+        on p.product_id = pc.product_id
+        inner join tbl_category c
+        on c.category_id = pc.category_id
+        where p.product_name like '%${key}%'`
+        db.query(sql, (err, dataproduct)=>{
+            if (err) return res.status(500).send(err)
+            return res.status(200).send(dataproduct)
+        })
+    },
+
+    getProductbyId: (req, res)=>{
+        const {id} = req.params
+        let sql = `SELECT p.product_id, p.description, p.image, p.price, p.product_name, c.category_id, c.category_name FROM ref_product_category pc
+        inner join tbl_product p
+        on p.product_id = pc.product_id
+        inner join tbl_category c
+        on c.category_id = pc.category_id
+        where p.product_id = ?`
+        db.query(sql,[id],(err, dataproduct)=>{
+            if (err) return res.status(500).send(err)
+            return res.status(200).send(dataproduct)
+        })
+    },
+
+    getProductbyPage:(req,res)=>{
+        const {page} = req.params
+        let sql =`select * from tbl_product limit ${(page-1)*5},8`
+        db.query(sql,(err,result)=>{
+            if(err)return res.status(500).send(err)
+            return res.status(200).send(result)
+        })
+    },
+
+    getProductbyCategory:(req,res)=>{
+        const {category} = req.params
+        let sql =`SELECT p.product_id, p.image, p.price, p.product_name, c.category_id, c.category_name FROM ref_product_category pc
+        inner join tbl_product p
+        on p.product_id = pc.product_id
+        inner join tbl_category c
+        on c.category_id = pc.category_id
+        where c.category_id = ${db.escape(category)}`
+        db.query(sql,(err,result)=>{
+            if(err)return res.status(500).send(err)
+            return res.status(200).send(result)
+        })
+    },
+
+    getProductbyNewArrival: (req, res)=>{
+        let sql = `select distinct (product_id), product_name, image, description, price, date_in from tbl_product
+        order by date_in desc limit 3`
+        db.query(sql, (err, dataproduct)=>{
+            if (err) return res.status(500).send(err)
+            return res.status(200).send(dataproduct)
+        })
+    },
+
+    getProductbyPopular: (req, res)=>{
+        let sql = `select p.product_id, p.product_name, p.price, avg(c.rating) as avg_rating, p.image from tbl_comment c
+        inner join tbl_product p
+        on p.product_id = c.product_id
+        group by p.product_id
+        order by avg_rating desc limit 2`
+        db.query(sql, (err, dataproduct)=>{
+            if (err) return res.status(500).send(err)
+            return res.status(200).send(dataproduct)
+        })
+    },
+
+    getCategory: (req, res)=>{
+        let sql = `select * from tbl_category`
+        db.query(sql, (err, category)=>{
+            if (err) return res.status(500).send(err)
+            return res.status(200).send(category)
+        })
+    },
+
     editProduct: (req, res)=>{
         const {id} = req.params
         let sql = `Select * from tbl_product where product_id = ${db.escape(id)}`
