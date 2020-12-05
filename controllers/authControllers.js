@@ -32,7 +32,7 @@ module.exports = {
                     email,
                     isVerified:0,
                     photo:'/users/default.png',
-                    role_id: 2,
+                    role_id: 1,
                     date_created: Date.now()
                 }
                 sql = 'insert into tbl_user set ?'
@@ -82,20 +82,18 @@ module.exports = {
                 db.query(sql,data,(err)=>{
                     if(err) return res.status(500).send({message:err.message})
 
-                    //EDIT LATER, IT IS JUST DUMMY DATA (START)
                     sql = `select tp.product_name, tp.price, tp.image, ttd.quantity, tp.product_id as idprod, tt.transaction_id as idtrans from tbl_product tp
                     join tbl_transaction_detail ttd on tp.product_id = ttd.product_id
                     join tbl_transaction tt on tt.transaction_id = ttd.transaction_id
                     where status = 'onCart' and tt.user_id = ?`
 
-                    db.query(sql, [1], (err, cartData)=> {
+                    db.query(sql, [result2[0].user_id], (err, cartData)=> {
                         if(err) return res.status(500).send({message:err.message})
 
                         const token = createJWToken({user_id:result[0].user_id,username:result[0].username})
                         result[0].token = token
                         return res.send({dataLogin: result[0], dataCart: cartData})
                     })
-                    //EDIT LATER, IT IS JUST DUMMY DATA (END)
                 })
             })
         })
