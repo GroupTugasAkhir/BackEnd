@@ -23,19 +23,42 @@ module.exports = {
                     product_name: data.product_name,
                     price: data.price,
                     image:imagePath,
-                    description: data.description
+                    description: data.description,
+                    date_in: Date.now()
                 }
+
                 console.log(dataInsert)
-                db.query(`insert into tbl_product set ?`, dataInsert, (err)=>{
+                db.query(`insert into tbl_product set ?`, dataInsert, (err, resultAddProduct)=>{
                     if(err) {
                         if(imagePath){
                             fs.unlinkSync('./public' + imagePath)
                         }
+                        console.log(err)
                         return res.status(500).send(err)
                     }
-                    db.query(`select * from tbl_product`, (err, dataProduct)=>{
+                    sql="insert into ref_product_category (product_id, category_id) values ?"
+                    
+                    var insertRefCategory = data.categoryRefCart.map((val,index)=>{
+                        console.log(val)
+                        return [
+                            resultAddProduct.insertId,
+                            val.value
+                        ]
+                    })
+                    db.query(sql, [insertRefCategory], (err)=>{
                         if (err) return res.status(500).send(err)
-                        return res.status(200).send(dataProduct)
+                        db.query(`select * from tbl_product`, (err, dataProduct)=>{
+                            if (err) return res.status(500).send(err)
+
+                            sql = `select p.product_id, c.category_id, p.product_name, c.category_name
+                            from tbl_category c join ref_product_category pc on c.category_id = pc.category_id
+                            join tbl_product p on pc.product_id = p.product_id ;`
+                            db.query(sql, (err, datarefcategory)=>{
+                                if (err) return res.status(500).send(err)
+
+                                return res.status(200).send({dataProduct, datarefcategory})
+                            })
+                        })
                     })
                 })
             })
@@ -254,7 +277,9 @@ module.exports = {
         db.query(sql, dataInsert,(err)=>{
             if(err) return res.status(500).send(err)
             // console.log('masuk dbad')
-            sql = `select * from tbl_product_detail where location_id=${dataInsert.location_id};`
+            sql = `select p.product_name, p.image, pd.*, sum(quantity) as real_quantity
+            from tbl_product p join tbl_product_detail pd on p.product_id = pd.product_id
+            where location_id=${db.escape(dataInsert.location_id)} group by product_id;`
             db.query(sql, (err,results)=>{
                 if(err)return res.status(500).send(err)
                 return res.status(200).send(results)
@@ -276,11 +301,11 @@ module.exports = {
         db.query(sql, (err, dataCurrentWH)=>{
             if(err)return res.status(500).send(err)
             
-            let sql = `select * from tbl_product`
+            sql = `select * from tbl_product`
             db.query(sql, (err, dataMainProd)=>{
                 if(err)return res.status(500).send(err)
 
-                let sql = `select p.product_name, p.image, pd.*, sum(quantity) as real_quantity
+                sql = `select p.product_name, p.image, pd.*, sum(quantity) as real_quantity
                 from tbl_product p join tbl_product_detail pd on p.product_id = pd.product_id
                 where location_id=${db.escape(id)} and status='on_packaging' group by product_id;`
                 db.query(sql, (err, dataSoldCurrentWH)=>{
