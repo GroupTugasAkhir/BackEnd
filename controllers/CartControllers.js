@@ -43,7 +43,7 @@ module.exports = {
     userTrxOnCart:(req,res)=>{
         const {user_id, product_id, quantity} = req.body
         let sql = `select * from tbl_transaction
-        where user_id = ? and status = 'on cart'`
+        where user_id = ? and status = 'onCart'`
         db.query(sql,[user_id],(err,result)=>{
             if(err)return res.status(500).send(err)
             if(result.length){
@@ -77,7 +77,7 @@ module.exports = {
                 let createDate = Math.round((new Date()).getTime() / 1000);
                 let data = {
                     date_in : createDate,
-                    status: 'on cart',
+                    status: 'onCart',
                     user_id,
                     payment_proof: null,
                     location_id: 0
@@ -87,7 +87,7 @@ module.exports = {
                     if(err) return res.status('500').send({message:err})
                     // return res.send('data successfully added')
                     sql = `select * from tbl_transaction
-                    where user_id = ? and status = 'on cart'`
+                    where user_id = ? and status = 'onCart'`
                     db.query(sql,[user_id],(err,result2)=>{
                         if(err)return res.status(500).send(err)
                         let data_product = {
@@ -112,7 +112,7 @@ module.exports = {
         inner join tbl_transaction_detail td
         on td.transaction_id = t.transaction_id
         where t.user_id = ?
-        and t.status = "on cart"`
+        and t.status = "onCart"`
         db.query(sql,[user_id],(err,result)=>{
             if(err)return res.status(500).send(err)
             return res.send(result)
@@ -127,7 +127,7 @@ module.exports = {
         inner join tbl_product p
         on p.product_id = td.product_id
         where user_id = ?
-        and t.status = "on cart" 
+        and t.status = "onCart" 
         order by p.product_name`
         db.query(sql,[user_id],(err,result)=>{
             if(err)return res.status(500).send(err)
