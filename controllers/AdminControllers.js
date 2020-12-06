@@ -237,24 +237,57 @@ module.exports = {
     //=========================================PRODUCT GUDANG========================================
 
     addWHProduct: (req, res) => {
-        let data = req.body
+        console.log(req.body)
+        // const data = JSON.parse(req.body)
+        const data = req.body
+        console.log(data)
+        const dataInsert = {...data, date_in: Date.now()}
+        // const dataInsert = {
+        //     product_id: data.product_id,
+        //     location_id: data.location_id,
+        //     quantity: data.quantity,
+        //     date_in : Date.now(),
+        //     status: data.status
+        // }
+        console.log(dataInsert)
         let sql = `insert into tbl_product_detail set ?`
-            db.query(sql,data,(err)=>{
-                if(err) return res.status(500).send(err)
-                console.log('masuk dbad')
-                sql = `select * from tbl_product_detail`
-                db.query(sql, (err,results)=>{
-                    if(err)return res.status(500).send(err)
-                    return res.status(200).send(results)
-                })
+        db.query(sql, dataInsert,(err)=>{
+            if(err) return res.status(500).send(err)
+            // console.log('masuk dbad')
+            sql = `select * from tbl_product_detail where location_id=${dataInsert.location_id};`
+            db.query(sql, (err,results)=>{
+                if(err)return res.status(500).send(err)
+                return res.status(200).send(results)
+            })
         })
     },
 
-    getWHProduct: (req, res) => {
+    getAllWHProduct: (req, res) => {
         let sql = `select * from tbl_product_detail`
         db.query(sql, (err,results)=>{
             if(err)return res.status(500).send(err)
             return res.status(200).send(results)
+        })
+    },
+
+    getCurrentWHProduct: (req, res) => {
+        const {id} = req.params //location_id
+        let sql = `select p.product_name, p.image, pd.*, sum(quantity) as real_quantity from tbl_product p join tbl_product_detail pd on p.product_id = pd.product_id where location_id=${db.escape(id)} group by product_id;`
+        db.query(sql, (err, dataCurrentWH)=>{
+            if(err)return res.status(500).send(err)
+            
+            let sql = `select * from tbl_product`
+            db.query(sql, (err, dataMainProd)=>{
+                if(err)return res.status(500).send(err)
+
+                let sql = `select p.product_name, p.image, pd.*, sum(quantity) as real_quantity
+                from tbl_product p join tbl_product_detail pd on p.product_id = pd.product_id
+                where location_id=${db.escape(id)} and status='on_packaging' group by product_id;`
+                db.query(sql, (err, dataSoldCurrentWH)=>{
+                    if(err)return res.status(500).send(err)
+                    return res.status(200).send({dataCurrentWH, dataMainProd, dataSoldCurrentWH})
+                })
+            })
         })
     },
 

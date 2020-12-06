@@ -16,7 +16,8 @@ Router.delete('/deleteProduct/:id', AdminControllers.deleteProduct)
 
 //For warehouse product
 Router.post('/addWHProduct', AdminControllers.addWHProduct) 
-Router.get('/getWHProduct', AdminControllers.getWHProduct)
+Router.get('/getWHProduct', AdminControllers.getAllWHProduct)
+Router.get('/getCurrentWHProduct/:id', AdminControllers.getCurrentWHProduct)
 Router.put('/editWHProduct/:id', AdminControllers.editWHProduct)
 Router.delete('/deleteWHProduct/:id', AdminControllers.deleteWHProduct)
 
