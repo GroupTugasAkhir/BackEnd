@@ -1,5 +1,7 @@
 const {db} = require('../connection')
 const {uploader} = require('../helpers/uploader')
+const {encrypt} = require('./../helpers')
+const {createJWToken} = require('./../helpers/jwt')
 const fs = require('fs')
 
 module.exports = {
@@ -398,5 +400,72 @@ module.exports = {
             }
         })
     },
+
+    //========================================= USER MANAGEMENT ========================================
+
+    getWHLocation: (req, res)=> {
+        let sql = `select * from tbl_location`
+        db.query(sql, (err, dataWH)=> {
+            if(err)return res.status(500).send(err)
+
+            sql = `select user_id, username, tl.location_name as warehouse from tbl_location tl join tbl_user tu on tu.notes = tl.location_id where tu.role_id = 3`
+            db.query(sql, (err, dataadminWH)=> {
+                if(err)return res.status(500).send(err)
+
+                return res.send({dataWH: dataWH, dataAdminWH: dataadminWH})
+            })
+        })
+    },
+    createAdminWH: (req, res)=> {
+        const {username, password, email, notes} = req.body
+        let hashPassword = encrypt(password)
+
+        let sql = `select * from tbl_user where username = ${db.escape(username)}`
+        db.query(sql, (err, userData)=> {
+            if(err)return res.status(500).send(err)
+
+            if(userData.length) {
+                return res.status('500').send({message:'username is already register'})
+            } else {
+                let dataAdmin = {
+                    username,
+                    password: hashPassword,
+                    email,
+                    isVerified: 1,
+                    photo: '/users/default.png',
+                    role_id: 3,
+                    date_created: Date.now(),
+                    notes: notes
+                }
+
+                sql = 'insert into tbl_user set ?'
+                db.query(sql, dataAdmin, (err)=> {
+                    if(err)return res.status(500).send(err)
+                    
+                    sql = `select user_id, username, tl.location_name as warehouse from tbl_location tl join tbl_user tu on tu.notes = tl.location_id where tu.role_id = 3`
+
+                    db.query(sql, (err, admin_data)=> {
+                        if(err)return res.status(500).send(err)
+
+                        // const token = createJWToken({user_id: admin_data[0].user_id, username: admin_data[0].username })
+                        // admin_data[0].token = token
+                        return res.send(admin_data)
+                    })
+                })
+            }
+        })
+    },
+    getalladminWH: (req, res)=> {
+        let sql = `select user_id, username, tl.location_name as warehouse from tbl_location tl join tbl_user tu on tu.notes = tl.location_id where tu.role_id = 3`
+
+        db.query(sql, (err, locData)=> {
+            if(err)return res.status(500).send(err)
+            // let newArray = []
+            // locData.forEach((val)=> {
+            //     newArray.push(val.notes.split(','))
+            // })
+            return res.send(locData)
+        })
+    }
 }
 
