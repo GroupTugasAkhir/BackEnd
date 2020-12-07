@@ -24,7 +24,7 @@ module.exports = {
                 sql = `update tbl_transaction set ? where transaction_id = ${db.escape(idtrans)}`
                 let updateTransData = {
                     date_in: Date.now(),
-                    status: 'completed',
+                    status: 'paymentCompleted',
                     payment_proof,
                     location_id: locationRes[0].location_id
                 }
@@ -67,7 +67,7 @@ module.exports = {
                     sql = `update tbl_transaction set ? where transaction_id = ${db.escape(invoiceData.idtrans)}`
                     let updateTransData = {
                         date_in: Date.now(),
-                        status: 'onWaitingConfirm',
+                        status: 'waitingAdminConfirmation',
                         payment_proof: invoicePath,
                         location_id: locationRes[0].location_id
                     }
