@@ -24,7 +24,7 @@ module.exports = {
         db.query(sql,[username],(err,result)=>{
             if(err) return res.status('500').send({message:err})
             if(result.length){
-                return res.status('500').send({messagge:'username is already register'})
+                return res.status('500').send({message:'username is already register'})
             } else{
                 let data = {
                     username,

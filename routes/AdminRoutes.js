@@ -26,4 +26,10 @@ Router.post('/addCategory', AdminControllers.addCategory)
 Router.put('/editCategory/:id', AdminControllers.editCategory)
 Router.delete('/deleteCategory/:id', AdminControllers.deleteCategory)
 
+//For user management
+Router.get('/getwhlocation', AdminControllers.getWHLocation)
+Router.post('/createAdminWH', AdminControllers.createAdminWH)
+Router.get('/getalladminWH', AdminControllers.getalladminWH)
+
+
 module.exports = Router
