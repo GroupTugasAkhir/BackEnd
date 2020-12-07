@@ -309,7 +309,7 @@ module.exports = {
 
                 sql = `select p.product_name, p.image, pd.*, sum(quantity) as real_quantity
                 from tbl_product p join tbl_product_detail pd on p.product_id = pd.product_id
-                where location_id=${db.escape(id)} and status='on_packaging' group by product_id;`
+                where location_id=${db.escape(id)} and status='onPackaging' group by product_id;`
                 db.query(sql, (err, dataSoldCurrentWH)=>{
                     if(err)return res.status(500).send(err)
                     return res.status(200).send({dataCurrentWH, dataMainProd, dataSoldCurrentWH})
