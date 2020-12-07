@@ -491,6 +491,20 @@ module.exports = {
             // })
             return res.send(locData)
         })
+    },
+
+    //========================================= SUPER ADMIN ========================================
+    getWHTrackingLog: (req, res)=> {
+        let sql = `select tp.product_name, tl.location_name, pd.quantity, pd.date_in, pd.status, pd.notes from tbl_product_detail pd
+        join tbl_product tp on tp.product_id = pd.product_id
+        join tbl_location tl on tl.location_id = pd.location_id
+        where !(pd.status in ('onPackaging') and pd.notes is null)`
+
+        db.query(sql, (err, inventLog)=> {
+            if(err)return res.status(500).send(err)
+
+            return res.send(inventLog)
+        })
     }
 }
 
