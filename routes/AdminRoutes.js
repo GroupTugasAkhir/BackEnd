@@ -26,4 +26,15 @@ Router.post('/addCategory', AdminControllers.addCategory)
 Router.put('/editCategory/:id', AdminControllers.editCategory)
 Router.delete('/deleteCategory/:id', AdminControllers.deleteCategory)
 
+//For user management
+Router.get('/getwhlocation', AdminControllers.getWHLocation)
+Router.post('/createAdminWH', AdminControllers.createAdminWH)
+Router.get('/getalladminWH', AdminControllers.getalladminWH)
+
+//For Transaction Log Super Admin
+Router.get('/getWHActivityLog', AdminControllers.getWHActivityLog)
+Router.get('/getWHTrackingLog', AdminControllers.getWHTrackingLog)
+Router.get('/getTrxUser', AdminControllers.getTrxUser)
+
+
 module.exports = Router

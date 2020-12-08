@@ -1,5 +1,7 @@
 const {db} = require('../connection')
 const {uploader} = require('../helpers/uploader')
+const {encrypt} = require('./../helpers')
+const {createJWToken} = require('./../helpers/jwt')
 const fs = require('fs')
 
 module.exports = {
@@ -307,7 +309,7 @@ module.exports = {
 
                 sql = `select p.product_name, p.image, pd.*, sum(quantity) as real_quantity
                 from tbl_product p join tbl_product_detail pd on p.product_id = pd.product_id
-                where location_id=${db.escape(id)} and status='on_packaging' group by product_id;`
+                where location_id=${db.escape(id)} and status='onPackaging' group by product_id;`
                 db.query(sql, (err, dataSoldCurrentWH)=>{
                     if(err)return res.status(500).send(err)
                     return res.status(200).send({dataCurrentWH, dataMainProd, dataSoldCurrentWH})
@@ -423,5 +425,149 @@ module.exports = {
             }
         })
     },
+
+    //========================================= USER MANAGEMENT ========================================
+
+    getWHLocation: (req, res)=> {
+        let sql = `select * from tbl_location`
+        db.query(sql, (err, dataWH)=> {
+            if(err)return res.status(500).send(err)
+
+            sql = `select user_id, username, tl.location_name as warehouse from tbl_location tl join tbl_user tu on tu.notes = tl.location_id where tu.role_id = 3`
+            db.query(sql, (err, dataadminWH)=> {
+                if(err)return res.status(500).send(err)
+
+                return res.send({dataWH: dataWH, dataAdminWH: dataadminWH})
+            })
+        })
+    },
+    createAdminWH: (req, res)=> {
+        const {username, password, email, notes} = req.body
+        let hashPassword = encrypt(password)
+
+        let sql = `select * from tbl_user where username = ${db.escape(username)}`
+        db.query(sql, (err, userData)=> {
+            if(err)return res.status(500).send(err)
+
+            if(userData.length) {
+                return res.status('500').send({message:'username is already register'})
+            } else {
+                let dataAdmin = {
+                    username,
+                    password: hashPassword,
+                    email,
+                    isVerified: 1,
+                    photo: '/users/default.png',
+                    role_id: 3,
+                    date_created: Date.now(),
+                    notes: notes
+                }
+
+                sql = 'insert into tbl_user set ?'
+                db.query(sql, dataAdmin, (err)=> {
+                    if(err)return res.status(500).send(err)
+                    
+                    sql = `select user_id, username, tl.location_name as warehouse from tbl_location tl join tbl_user tu on tu.notes = tl.location_id where tu.role_id = 3`
+
+                    db.query(sql, (err, admin_data)=> {
+                        if(err)return res.status(500).send(err)
+
+                        // const token = createJWToken({user_id: admin_data[0].user_id, username: admin_data[0].username })
+                        // admin_data[0].token = token
+                        return res.send(admin_data)
+                    })
+                })
+            }
+        })
+    },
+    getalladminWH: (req, res)=> {
+        let sql = `select user_id, username, tl.location_name as warehouse from tbl_location tl join tbl_user tu on tu.notes = tl.location_id where tu.role_id = 3`
+
+        db.query(sql, (err, locData)=> {
+            if(err)return res.status(500).send(err)
+            // let newArray = []
+            // locData.forEach((val)=> {
+            //     newArray.push(val.notes.split(','))
+            // })
+            return res.send(locData)
+        })
+    },
+
+    //========================================= TRACKING LOG ========================================
+    
+    getWHTrackingLog: (req, res)=> {
+        const {page} = req.query
+        if(page) {
+            var sql = `select tp.product_name, tl.location_name, pd.quantity, pd.date_in, pd.status, pd.notes from tbl_product_detail pd
+            join tbl_product tp on tp.product_id = pd.product_id
+            join tbl_location tl on tl.location_id = pd.location_id
+            where !(pd.status in ('onPackaging') and pd.notes is null)
+            order by pd.date_in desc
+            limit ${(page-1)*5}, 5`
+        } else {
+            var sql = `select tp.product_name, tl.location_name, pd.quantity, pd.date_in, pd.status, pd.notes from tbl_product_detail pd
+            join tbl_product tp on tp.product_id = pd.product_id
+            join tbl_location tl on tl.location_id = pd.location_id
+            where !(pd.status in ('onPackaging') and pd.notes is null)`
+        }
+
+        db.query(sql, (err, inventLog)=> {
+            if(err)return res.status(500).send(err)
+            
+            sql = `select count(*) as amountofprod from tbl_product_detail pd
+            join tbl_product tp on tp.product_id = pd.product_id
+            join tbl_location tl on tl.location_id = pd.location_id
+            where !(pd.status in ('onPackaging') and pd.notes is null)`
+            db.query(sql, (err, countProd)=> {
+                if(err)return res.status(500).send(err)
+
+                return res.send({inventLog: inventLog, countProd: countProd})
+            })
+        })
+    },
+
+    getWHActivityLog: (req, res)=> {
+        const {userLoc} = req.query
+        let sql = `select tp.product_name, tn.quantity as trxqty, tpd.date_in, tn.from, tn.destination, tn.status, tl.location_name as fromLoc, extendLoc.location_name as destLoc from tbl_product_detail tpd
+        join tbl_product tp on tp.product_id = tpd.product_id
+        join tbl_transaction_detail ttd on ttd.product_id = tpd.product_id and ttd.quantity = tpd.quantity
+        join tbl_notification tn on tn.transaction_detail_id = ttd.transaction_detail_id
+        join tbl_location tl on tl.location_id = tn.from
+        join (select * from tbl_location) as extendLoc on extendLoc.location_id = tn.destination
+        where tn.from = ${db.escape(userLoc)} or tn.destination or ${db.escape(userLoc)}`
+
+        db.query(sql, (err, activityRes)=> {
+            if(err)return res.status(500).send(err)
+
+            return res.send(activityRes)
+        })
+    },
+
+
+    //========================================= TRANSACTION LOG ========================================
+
+    getTrxUser: (req, res) => {
+        let sql = `select t.transaction_id, t.date_in, t.status, u.user_id, u.username, t.payment_proof, t.method, t.location_id, l.location_name
+        from tbl_transaction t join tbl_user u on t.user_id=u.user_id
+        join tbl_location l on t.location_id=l.location_id;`
+        db.query(sql, (err, dataTrxUser)=>{
+            if(err)return res.status(500).send(err)
+
+            sql = `select td.*, p.product_name, p.price, p.image
+            from tbl_transaction_detail td join tbl_product p on td.product_id=p.product_id;`
+            db.query(sql, (err, dataTrxDetail)=> {
+                if(err)return res.status(500).send(err)
+
+                sql = `select td.transaction_detail_id, td.transaction_id, sum(td.quantity*p.price) as total_price
+                from tbl_transaction_detail td join tbl_product p on td.product_id=p.product_id
+                group by td.transaction_id;`
+                db.query(sql, (err, dataTotalPrice)=> {
+                    if(err)return res.status(500).send(err)
+    
+                    return res.send({dataTrxUser, dataTrxDetail, dataTotalPrice})
+                })
+            })
+        })
+    }
 }
 
