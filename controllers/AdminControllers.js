@@ -496,27 +496,163 @@ module.exports = {
     //========================================= TRANSACTION LOG ========================================
 
     getTrxUser: (req, res) => {
-        let sql = `select t.transaction_id, t.date_in, t.status, u.user_id, u.username, t.payment_proof, t.method, t.location_id, l.location_name
+        let sql = `select trans.*, transdet.total_price from
+        (select t.transaction_id, t.date_in, t.status, u.user_id, u.username, 
+        t.payment_proof, t.method, t.location_id, l.location_name
         from tbl_transaction t join tbl_user u on t.user_id=u.user_id
-        join tbl_location l on t.location_id=l.location_id;`
+        join tbl_location l on t.location_id=l.location_id) as trans
+        join (select transaction_id, sum(price*quantity) as total_price
+        from tbl_transaction_detail group by transaction_id) as transdet 
+        on trans.transaction_id = transdet.transaction_id;`
         db.query(sql, (err, dataTrxUser)=>{
             if(err)return res.status(500).send(err)
 
-            sql = `select td.*, p.product_name, p.price, p.image
-            from tbl_transaction_detail td join tbl_product p on td.product_id=p.product_id;`
-            db.query(sql, (err, dataTrxDetail)=> {
-                if(err)return res.status(500).send(err)
+            return res.send(dataTrxUser)
 
-                sql = `select td.transaction_detail_id, td.transaction_id, sum(td.quantity*p.price) as total_price
-                from tbl_transaction_detail td join tbl_product p on td.product_id=p.product_id
-                group by td.transaction_id;`
-                db.query(sql, (err, dataTotalPrice)=> {
+            // sql = `select td.*, p.product_name, p.price, p.image
+            // from tbl_transaction_detail td join tbl_product p on td.product_id=p.product_id;`
+            // db.query(sql, (err, dataTrxDetail)=> {
+            //     if(err)return res.status(500).send(err)
+
+            //     sql = `select td.transaction_detail_id, td.transaction_id, sum(td.quantity*p.price) as total_price
+            //     from tbl_transaction_detail td join tbl_product p on td.product_id=p.product_id
+            //     group by td.transaction_id;`
+            //     db.query(sql, (err, dataTotalPrice)=> {
+            //         if(err)return res.status(500).send(err)
+
+            //         sql = `select pd.product_detail_id, pd.product_id, pd.location_id, p.product_name, p.image, 
+            //         sum(quantity) as real_quantity from tbl_product p join tbl_product_detail pd 
+            //         on p.product_id = pd.product_id group by product_id;`
+            //         db.query(sql, (err, dataProductWH)=> {
+            //             if(err)return res.status(500).send(err)
+        
+            //             return res.send({dataTrxUser, dataTrxDetail, dataTotalPrice, dataProductWH})
+            //         })
+            //     })
+            // })
+        })
+    },
+
+    getTrxDetailById: (req, res) => {
+        const {id} = req.params // transaction_id
+        let sql = `select td.*, p.product_name, p.image
+        from tbl_transaction_detail td join tbl_product p on td.product_id=p.product_id
+        where td.transaction_id=${db.escape(id)};`
+
+        db.query(sql, (err, dataTrxDetailById)=>{
+            if(err)return res.status(500).send(err)
+
+            return res.send(dataTrxDetailById)
+        })
+    },
+
+    getTrxTrackingById: (req, res) => {
+        const {id} = req.params // transaction_id
+        let sql = `select * from 
+        (select td.product_id, td.quantity, p.product_name, p.image
+        from tbl_transaction_detail td join tbl_transaction t on td.transaction_id=t.transaction_id
+        join tbl_product p on p.product_id = td.product_id
+        where t.transaction_id = ${db.escape(id)}) as tbl left join 
+        (select product_id as prod_id, sum(pd.quantity) as stock_warehouse
+        from  tbl_product_detail pd 
+        where pd.location_id=1 group by product_id) as apa on tbl.product_id = apa.prod_id;`
+
+        db.query(sql, (err, dataTrxTrackingById)=>{
+            if(err)return res.status(500).send(err)
+
+            return res.send(dataTrxTrackingById)
+        })
+    },
+
+    getPaymentCheck: (req, res) => {
+        const {id} = req.params // transaction_id
+        let sql = `select trans.*, transdet.total_price from
+        (select t.transaction_id, t.date_in, t.status, u.user_id, u.username, 
+        t.payment_proof, t.method, t.location_id, l.location_name
+        from tbl_transaction t join tbl_user u on t.user_id=u.user_id
+        join tbl_location l on t.location_id=l.location_id) as trans
+        join (select transaction_id, sum(price*quantity) as total_price
+        from tbl_transaction_detail group by transaction_id) as transdet 
+        on trans.transaction_id = transdet.transaction_id where trans.transaction_id=1;`
+
+        db.query(sql, (err, dataPaymentCheck)=>{
+            if(err)return res.status(500).send(err)
+
+            return res.send({dataPaymentCheck: dataPaymentCheck[0]})
+        })
+    },
+
+    acceptPaymentTrf: (req, res) => {
+        const {id} = req.params
+        let sql = `Select * from tbl_transaction where transaction_id = ${db.escape(id)}`
+        db.query(sql, (err, results)=>{
+            if(err){
+                console.log(err)
+                return res.status(500).send(err)
+            }
+
+            if(results.length){
+                sql = `Update tbl_transaction set ? where transaction_id = ${db.escape(id)}`
+                let dataUpdate = {
+                    status: 'paymentCompleted'
+                }
+                db.query(sql, dataUpdate, (err)=>{
                     if(err)return res.status(500).send(err)
-    
-                    return res.send({dataTrxUser, dataTrxDetail, dataTotalPrice})
+                    
+                    let sql = `select trans.*, transdet.total_price from
+                    (select t.transaction_id, t.date_in, t.status, u.user_id, u.username, 
+                    t.payment_proof, t.method, t.location_id, l.location_name
+                    from tbl_transaction t join tbl_user u on t.user_id=u.user_id
+                    join tbl_location l on t.location_id=l.location_id) as trans
+                    join (select transaction_id, sum(price*quantity) as total_price
+                    from tbl_transaction_detail group by transaction_id) as transdet 
+                    on trans.transaction_id = transdet.transaction_id;`
+                    db.query(sql, (err, results)=>{
+                        if(err)return res.status(500).send(err)
+                        return res.status(200).send(results)
+                    })
                 })
-            })
+            }else{
+                return res.status(500).send('transaction tidak ada')
+            }
+        })
+    },
+
+    rejectPaymentTrf: (req, res) => {
+        const {id} = req.params
+        let sql = `Select * from tbl_transaction where transaction_id = ${db.escape(id)}`
+        db.query(sql, (err, results)=>{
+            if(err){
+                console.log(err)
+                return res.status(500).send(err)
+            }
+
+            if(results.length){
+                sql = `Update tbl_transaction set ? where transaction_id = ${db.escape(id)}`
+                let dataUpdate = {
+                    status: 'paymentRejected'
+                }
+                db.query(sql, dataUpdate, (err)=>{
+                    if(err)return res.status(500).send(err)
+                    
+                    let sql = `select trans.*, transdet.total_price from
+                    (select t.transaction_id, t.date_in, t.status, u.user_id, u.username, 
+                    t.payment_proof, t.method, t.location_id, l.location_name
+                    from tbl_transaction t join tbl_user u on t.user_id=u.user_id
+                    join tbl_location l on t.location_id=l.location_id) as trans
+                    join (select transaction_id, sum(price*quantity) as total_price
+                    from tbl_transaction_detail group by transaction_id) as transdet 
+                    on trans.transaction_id = transdet.transaction_id;`
+                    db.query(sql, (err, results)=>{
+                        if(err)return res.status(500).send(err)
+                        return res.status(200).send(results)
+                    })
+                })
+            }else{
+                return res.status(500).send('transaction tidak ada')
+            }
         })
     }
+
 }
 

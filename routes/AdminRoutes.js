@@ -33,6 +33,10 @@ Router.get('/getalladminWH', AdminControllers.getalladminWH)
 
 //For Transaction Log Super Admin
 Router.get('/getTrxUser', AdminControllers.getTrxUser)
-
+Router.get('/getTrxDetailById/:id', AdminControllers.getTrxDetailById)
+Router.get('/getTrxTrackingById/:id', AdminControllers.getTrxTrackingById)
+Router.get('/getPaymentCheck/:id', AdminControllers.getPaymentCheck)
+Router.put('/acceptPaymentTrf/:id', AdminControllers.acceptPaymentTrf)
+Router.put('/rejectPaymentTrf/:id', AdminControllers.rejectPaymentTrf)
 
 module.exports = Router
