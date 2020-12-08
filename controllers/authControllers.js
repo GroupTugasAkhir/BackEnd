@@ -62,19 +62,45 @@ module.exports = {
         })
     },
     login:(req,res)=>{
-        const {email, password} = req.body
-        console.log(password)
+        const {emailuser, password} = req.body
         let hashPassword = encrypt(password)
-        console.log(hashPassword)
+
         let sql = "select * from tbl_user where email = ? and password = ?"
-        db.query(sql,[email, hashPassword],(err,result)=>{
+        db.query(sql,[emailuser, hashPassword],(err, resultEmail)=>{
             if(err) return res.status(500).send({message:err.message})
-            if(!result.length) return res.status(500).send({message:'user tidak terdaftar'})
-            
-            sql = "select * from tbl_user where email = ? and password = ? and isVerified = 1"
-            db.query(sql,[email, hashPassword],(err, result2)=>{
-                if(err) return res.send({message:err.message})
-                sql = `update tbl_user set ? where user_id = ${db.escape(result2[0].user_id)}`
+            if(!resultEmail.length) {
+                sql = `select * from tbl_user where username = ? and password = ?`
+
+                db.query(sql, [emailuser, hashPassword], (err, resultUser)=> {
+                    if(err) return res.status(500).send({message:err.message})
+                    if(!resultUser.length) {
+                        return res.status(500).send({message:'user tidak terdaftar'})
+                    }
+
+                    sql = `update tbl_user set ? where user_id = ${db.escape(resultUser[0].user_id)}`
+                    let data = {
+                        date_created: Date.now()
+                    }
+
+                    db.query(sql,data,(err)=>{
+                        if(err) return res.status(500).send({message:err.message})
+
+                        sql = `select tp.product_name, tp.price, tp.image, ttd.quantity, tp.product_id as idprod, tt.transaction_id as idtrans from tbl_product tp
+                        join tbl_transaction_detail ttd on tp.product_id = ttd.product_id
+                        join tbl_transaction tt on tt.transaction_id = ttd.transaction_id
+                        where status = 'onCart' and tt.user_id = ?`
+
+                        db.query(sql, [resultUser[0].user_id], (err, cartData)=> {
+                            if(err) return res.status(500).send({message:err.message})
+
+                            const token = createJWToken({user_id:resultUser[0].user_id, username:resultUser[0].username})
+                            resultUser[0].token = token
+                            return res.send({dataLogin: resultUser[0], dataCart: cartData})
+                        })
+                    })
+                })
+            } else {
+                sql = `update tbl_user set ? where user_id = ${db.escape(resultEmail[0].user_id)}`
                 let data = {
                     date_created: Date.now()
                 }
@@ -87,15 +113,15 @@ module.exports = {
                     join tbl_transaction tt on tt.transaction_id = ttd.transaction_id
                     where status = 'onCart' and tt.user_id = ?`
 
-                    db.query(sql, [result2[0].user_id], (err, cartData)=> {
+                    db.query(sql, [resultEmail[0].user_id], (err, cartData)=> {
                         if(err) return res.status(500).send({message:err.message})
 
-                        const token = createJWToken({user_id:result[0].user_id,username:result[0].username})
-                        result[0].token = token
-                        return res.send({dataLogin: result[0], dataCart: cartData})
+                        const token = createJWToken({user_id:resultEmail[0].user_id,username:resultEmail[0].username})
+                        resultEmail[0].token = token
+                        return res.send({dataLogin: resultEmail[0], dataCart: cartData})
                     })
                 })
-            })
+            }
         })
     },
     verified:(req,res)=>{
