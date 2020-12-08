@@ -493,7 +493,7 @@ module.exports = {
         })
     },
 
-    //========================================= SUPER ADMIN ========================================
+    //========================================= TRACKING LOG ========================================
     
     getWHTrackingLog: (req, res)=> {
         const {page} = req.query
@@ -523,6 +523,23 @@ module.exports = {
 
                 return res.send({inventLog: inventLog, countProd: countProd})
             })
+        })
+    },
+
+    getWHActivityLog: (req, res)=> {
+        const {userLoc} = req.query
+        let sql = `select tp.product_name, tn.quantity as trxqty, tpd.date_in, tn.from, tn.destination, tn.status, tl.location_name as fromLoc, extendLoc.location_name as destLoc from tbl_product_detail tpd
+        join tbl_product tp on tp.product_id = tpd.product_id
+        join tbl_transaction_detail ttd on ttd.product_id = tpd.product_id and ttd.quantity = tpd.quantity
+        join tbl_notification tn on tn.transaction_detail_id = ttd.transaction_detail_id
+        join tbl_location tl on tl.location_id = tn.from
+        join (select * from tbl_location) as extendLoc on extendLoc.location_id = tn.destination
+        where tn.from = ${db.escape(userLoc)} or tn.destination or ${db.escape(userLoc)}`
+
+        db.query(sql, (err, activityRes)=> {
+            if(err)return res.status(500).send(err)
+
+            return res.send(activityRes)
         })
     },
 
