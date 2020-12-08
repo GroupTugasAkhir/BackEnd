@@ -31,7 +31,9 @@ Router.get('/getwhlocation', AdminControllers.getWHLocation)
 Router.post('/createAdminWH', AdminControllers.createAdminWH)
 Router.get('/getalladminWH', AdminControllers.getalladminWH)
 
-//For Super Admin
+//For Transaction Log Super Admin
 Router.get('/getWHTrackingLog', AdminControllers.getWHTrackingLog)
+Router.get('/getTrxUser', AdminControllers.getTrxUser)
+
 
 module.exports = Router

@@ -494,6 +494,7 @@ module.exports = {
     },
 
     //========================================= SUPER ADMIN ========================================
+    
     getWHTrackingLog: (req, res)=> {
         let sql = `select tp.product_name, tl.location_name, pd.quantity, pd.date_in, pd.status, pd.notes from tbl_product_detail pd
         join tbl_product tp on tp.product_id = pd.product_id
@@ -502,8 +503,35 @@ module.exports = {
 
         db.query(sql, (err, inventLog)=> {
             if(err)return res.status(500).send(err)
-
+    
             return res.send(inventLog)
+        })
+    },
+
+
+    //========================================= TRANSACTION LOG ========================================
+
+    getTrxUser: (req, res) => {
+        let sql = `select t.transaction_id, t.date_in, t.status, u.user_id, u.username, t.payment_proof, t.method, t.location_id, l.location_name
+        from tbl_transaction t join tbl_user u on t.user_id=u.user_id
+        join tbl_location l on t.location_id=l.location_id;`
+        db.query(sql, (err, dataTrxUser)=>{
+            if(err)return res.status(500).send(err)
+
+            sql = `select td.*, p.product_name, p.price, p.image
+            from tbl_transaction_detail td join tbl_product p on td.product_id=p.product_id;`
+            db.query(sql, (err, dataTrxDetail)=> {
+                if(err)return res.status(500).send(err)
+
+                sql = `select td.transaction_detail_id, td.transaction_id, sum(td.quantity*p.price) as total_price
+                from tbl_transaction_detail td join tbl_product p on td.product_id=p.product_id
+                group by td.transaction_id;`
+                db.query(sql, (err, dataTotalPrice)=> {
+                    if(err)return res.status(500).send(err)
+    
+                    return res.send({dataTrxUser, dataTrxDetail, dataTotalPrice})
+                })
+            })
         })
     }
 }
