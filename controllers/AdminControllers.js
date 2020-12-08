@@ -3,6 +3,7 @@ const {uploader} = require('../helpers/uploader')
 const {encrypt} = require('./../helpers')
 const {createJWToken} = require('./../helpers/jwt')
 const fs = require('fs')
+const mysql = require('mysql')
 
 module.exports = {
     addProduct: (req, res) => {
@@ -72,7 +73,10 @@ module.exports = {
 
     getProduct: (req, res)=>{
         // get product and category
-        let sql = `select * from tbl_product`
+        let sql = `select pd.product_detail_id, pd.product_id, 
+        p.product_name, p.image, p.price, sum(quantity) as stock, p.description
+        from tbl_product p join tbl_product_detail pd on p.product_id = pd.product_id 
+        group by product_id;`
         db.query(sql, (err, dataproduct)=>{
             if (err) return res.status(500).send(err)
             
@@ -90,6 +94,201 @@ module.exports = {
             })
         })
     },
+
+    getProductandStock: (req, res) => {
+        const {id} = req.params //product_id
+        let sql = `select pd.product_detail_id, pd.product_id, 
+        p.product_name, p.image, p.price, sum(quantity) as stock, p.description
+        from tbl_product p join tbl_product_detail pd on p.product_id = pd.product_id 
+        where pd.product_id=? group by product_id;`
+        db.query(sql,[id],(err, dataproduct)=>{
+            if (err) return res.status(500).send({message:err.message})
+
+            sql = `select pc.product_category_id, p.product_id, c.category_id, p.product_name, c.category_name
+            from tbl_category c join ref_product_category pc on c.category_id = pc.category_id
+            join tbl_product p on pc.product_id = p.product_id 
+            where p.product_id=?;`
+            db.query(sql,[id],(err, dataRefCategory)=>{
+                if (err) return res.status(500).send({message:err.message})
+                
+                return res.status(200).send({
+                    dataproduct: dataproduct[0], 
+                    dataRefCategory
+                })
+            })
+        })
+    },
+
+    testes:(req, res)=>{
+        var values = [
+            // {product_category_id:7, product_id:8, category_id:10},
+            // {product_category_id:8, product_id:8, category_id:14}
+            { category_id:11, product_category_id:7},
+            { category_id:14, product_category_id:8}
+        ]
+        let sql = ''
+        values.forEach(function (val) {
+            sql += `UPDATE ref_product_category SET category_id = ${val.category_id}  
+            WHERE product_category_id = ${val.product_category_id};`
+        })
+
+        db.query(sql, (err)=>{
+            if (err) return res.status(500).send(err)
+
+            db.query(`select * from ref_product_category`, (err, dataProduct)=>{
+                if (err) return res.status(500).send(err)
+                
+                return res.status(200).send(dataProduct)
+            })
+        })
+    },
+
+    editProduct: (req, res)=>{
+        const {id} = req.params
+        let sql = `Select * from tbl_product where product_id = ${db.escape(id)}`
+        db.query(sql, (err, results)=>{
+            if(err)return res.status(500).send(err)
+
+            if(results.length){
+                try{
+                    console.log('try editprod')
+                    const path = '/product'
+                    const upload = uploader(path, 'PROD').fields([{name: 'image'}])
+                    upload(req, res, (err)=>{
+                        if (err){
+                            return res.status(500).json({message: 'Upload picture failed', error: err.message})
+                        }
+                        console.log('berhasil upload edit')
+                        const {image} = req.files
+                        // console.log(image)
+                        const imagePath = image ? path + '/' + image[0].filename : null
+                        // console.log(imagePath)
+                        // console.log(req.body.data)
+                        const data = JSON.parse(req.body.data)
+                        let dataUpdate = {
+                            product_name: data.product_name,
+                            price: data.price,
+                            image: imagePath ? imagePath : data.oldimage,
+                            description: data.description
+                        }
+                        console.log(dataUpdate)
+
+
+                        sql = `Update tbl_product set ? where product_id = ${db.escape(id)}`
+                        console.log('sini')
+                        db.query(sql, dataUpdate, (err)=>{
+                            if(err) {
+                                if(imagePath){
+                                    fs.unlinkSync('./public' + imagePath)
+                                }
+                                return res.status(500).send(err)
+                            }
+
+                            if(imagePath) { // hapus foto lama
+                                if(results[0].image){
+                                    fs.unlinkSync('./public'+ results[0].image)
+                                }
+                            }
+                            db.beginTransaction((err)=>{
+                                if (err) {
+                                    return res.status(500).send(err)
+                                }
+                                
+                                sql = ''
+                                data.oldcategory.forEach(function (val) {
+                                    sql += `delete from ref_product_category
+                                    where product_category_id = ${db.escape(val.product_category_id)};`
+                                })
+                                db.query(sql, (err)=>{
+                                    if (err) {
+                                        return db.rollback(()=>{
+                                            res.status(500).send(err)
+                                        })
+                                    }
+    
+                                    sql="insert into ref_product_category (product_id, category_id) values ?"
+                        
+                                    var insertRefCategory = data.newcategory.map((val,index)=>{
+                                        console.log(val)
+                                        return [
+                                            data.product_id,
+                                            val.value
+                                        ]
+                                    })
+                                    db.query(sql, [insertRefCategory], (err)=>{
+                                        if (err) {
+                                            return db.rollback(()=>{
+                                                res.status(500).send(err)
+                                            })
+                                        }
+
+                                        db.commit((err)=>{
+                                            if (err) {
+                                                return db.rollback(()=>{
+                                                    res.status(500).send(err)
+                                                })
+                                            }
+                                            sql = `select pd.product_detail_id, pd.product_id, 
+                                            p.product_name, p.image, p.price, sum(quantity) as stock, p.description
+                                            from tbl_product p join tbl_product_detail pd on p.product_id = pd.product_id 
+                                            group by product_id;`
+                                            db.query(sql, (err, dataProduct)=>{
+                                                if (err) return res.status(500).send(err)
+            
+                                                sql = `select p.product_id, c.category_id, p.product_name, c.category_name
+                                                from tbl_category c join ref_product_category pc on c.category_id = pc.category_id
+                                                join tbl_product p on pc.product_id = p.product_id ;`
+                                                db.query(sql, (err, datarefcategory)=>{
+                                                    if (err) return res.status(500).send(err)
+            
+                                                    return res.status(200).send({dataProduct, datarefcategory})
+                                                })
+                                            })
+                                        })
+    
+                                    })
+                                })
+                            })
+
+                            
+                        })
+                    })
+                }catch(error){
+                    console.log('eror')
+                    return res.status(500).send(error)
+                }
+            }else{
+                return res.status(500).send('product tidak ada')
+            }
+        })
+    },
+
+    deleteProduct: (req, res) => {
+        const {id} = req.params
+        let sql = `select * from tbl_product where product_id = ${db.escape(id)}`
+        db.query(sql, (err, dataproduct)=>{
+            if(err) return res.status(500).send(err)
+            if(dataproduct.length){
+                sql = `delete from tbl_product where product_id = ${db.escape(id)}`
+                db.query(sql, (err)=>{
+                    if(err) return res.status(500).send(error)
+
+                    if(dataproduct[0].image){
+                        fs.unlinkSync('./public'+ dataproduct[0].image)
+                    }
+                    sql = `select * from tbl_product`
+                    db.query(sql, (err, allproduct)=>{
+                        if (err) return res.status(500).send(err)
+                        return res.status(200).send(allproduct)
+                    })
+                })
+            }else{
+                return res.status(500).send('product tidak ada')
+            }
+        })
+    },
+
+    //========================================= HOME PAGE ========================================
 
     getProductbySearch: (req, res)=>{
         const {key} = req.params
@@ -168,94 +367,6 @@ module.exports = {
         db.query(sql, (err, category)=>{
             if (err) return res.status(500).send(err)
             return res.status(200).send(category)
-        })
-    },
-
-    editProduct: (req, res)=>{
-        const {id} = req.params
-        let sql = `Select * from tbl_product where product_id = ${db.escape(id)}`
-        db.query(sql, (err, results)=>{
-            if(err)return res.status(500).send(err)
-
-            if(results.length){
-                try{
-                    console.log('try editprod')
-                    const path = '/product'
-                    const upload = uploader(path, 'PROD').fields([{name: 'image'}])
-                    upload(req, res, (err)=>{
-                        if (err){
-                            return res.status(500).json({message: 'Upload picture failed', error: err.message})
-                        }
-                        console.log('berhasil upload edit')
-                        const {image} = req.files
-                        // console.log(image)
-                        const imagePath = image ? path + '/' + image[0].filename : null
-                        // console.log(imagePath)
-                        // console.log(req.body.data)
-                        const data = JSON.parse(req.body.data)
-                        let dataUpdate = {
-                            product_name: data.product_name,
-                            price: data.price,
-                            image:imagePath,
-                            description: data.description
-                        }
-                        console.log(dataUpdate)
-                        sql = `Update tbl_product set ? where product_id = ${db.escape(id)}`
-                        console.log('sini')
-                        db.query(sql, dataUpdate, (err)=>{
-                            if(err) {
-                                if(imagePath){
-                                    fs.unlinkSync('./public' + imagePath)
-                                }
-                                return res.status(500).send(err)
-                            }
-
-                            if(imagePath) { // hapus foto lama
-                                if(results[0].image){
-                                    fs.unlinkSync('./public'+ results[0].image)
-                                }
-                            }
-
-                            // console.log('asadaa')
-                            sql = `Select * from tbl_product`
-                            db.query(sql, (err, allProducts)=>{
-                                if(err)return res.status(500).send(err)
-                                return res.status(200).send(allProducts)
-                            })
-                        })
-                    })
-                }catch(error){
-                    console.log('eror')
-                    return res.status(500).send(error)
-                }
-            }else{
-                return res.status(500).send('product tidak ada')
-            }
-        })
-    },
-
-    deleteProduct: (req, res) => {
-        const {id} = req.params
-        let sql = `select * from tbl_product where product_id = ${db.escape(id)}`
-        db.query(sql, (err, dataproduct)=>{
-            if(err) return res.status(500).send(err)
-            if(dataproduct.length){
-                sql = `delete from tbl_product where product_id = ${db.escape(id)}`
-                db.query(sql, (err)=>{
-                    if(err) return res.status(500).send(error)
-
-                    if(dataproduct[0].image){
-                        fs.unlinkSync('./public'+ dataproduct[0].image)
-                    }
-                    sql = `select * from tbl_product`
-                    db.query(sql, (err, allproduct)=>{
-                        if (err) return res.status(500).send(err)
-                        return res.status(200).send(allproduct)
-                    })
-                })
-            }else{
-                return res.status(500).send('product tidak ada')
-            }
         })
     },
 
@@ -508,28 +619,6 @@ module.exports = {
             if(err)return res.status(500).send(err)
 
             return res.send(dataTrxUser)
-
-            // sql = `select td.*, p.product_name, p.price, p.image
-            // from tbl_transaction_detail td join tbl_product p on td.product_id=p.product_id;`
-            // db.query(sql, (err, dataTrxDetail)=> {
-            //     if(err)return res.status(500).send(err)
-
-            //     sql = `select td.transaction_detail_id, td.transaction_id, sum(td.quantity*p.price) as total_price
-            //     from tbl_transaction_detail td join tbl_product p on td.product_id=p.product_id
-            //     group by td.transaction_id;`
-            //     db.query(sql, (err, dataTotalPrice)=> {
-            //         if(err)return res.status(500).send(err)
-
-            //         sql = `select pd.product_detail_id, pd.product_id, pd.location_id, p.product_name, p.image, 
-            //         sum(quantity) as real_quantity from tbl_product p join tbl_product_detail pd 
-            //         on p.product_id = pd.product_id group by product_id;`
-            //         db.query(sql, (err, dataProductWH)=> {
-            //             if(err)return res.status(500).send(err)
-        
-            //             return res.send({dataTrxUser, dataTrxDetail, dataTotalPrice, dataProductWH})
-            //         })
-            //     })
-            // })
         })
     },
 
