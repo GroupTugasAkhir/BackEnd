@@ -459,7 +459,7 @@ module.exports = {
 
                 sql = `select p.product_name, p.image, pd.*, sum(quantity) as real_quantity
                 from tbl_product p join tbl_product_detail pd on p.product_id = pd.product_id
-                where location_id=${db.escape(id)} and status='on_packaging' group by product_id;`
+                where location_id=${db.escape(id)} and status='onPackaging' group by product_id;`
                 db.query(sql, (err, dataSoldCurrentWH)=>{
                     if(err)return res.status(500).send(err)
                     return res.status(200).send({dataCurrentWH, dataMainProd, dataSoldCurrentWH})
@@ -642,6 +642,71 @@ module.exports = {
             return res.send(locData)
         })
     },
+
+    //========================================= TRACKING LOG ========================================
+    
+    getWHTrackingLog: (req, res)=> {
+        const {page} = req.query
+        if(page) {
+            var sql = `select tp.product_name, tl.location_name, pd.quantity, pd.date_in, pd.status, pd.notes from tbl_product_detail pd
+            join tbl_product tp on tp.product_id = pd.product_id
+            join tbl_location tl on tl.location_id = pd.location_id
+            where !(pd.status in ('onPackaging') and pd.notes is null)
+            order by pd.date_in desc
+            limit ${(page-1)*5}, 5`
+        } else {
+            var sql = `select tp.product_name, tl.location_name, pd.quantity, pd.date_in, pd.status, pd.notes from tbl_product_detail pd
+            join tbl_product tp on tp.product_id = pd.product_id
+            join tbl_location tl on tl.location_id = pd.location_id
+            where !(pd.status in ('onPackaging') and pd.notes is null)`
+        }
+
+        db.query(sql, (err, inventLog)=> {
+            if(err)return res.status(500).send(err)
+            
+            sql = `select count(*) as amountofprod from tbl_product_detail pd
+            join tbl_product tp on tp.product_id = pd.product_id
+            join tbl_location tl on tl.location_id = pd.location_id
+            where !(pd.status in ('onPackaging') and pd.notes is null)`
+            db.query(sql, (err, countProd)=> {
+                if(err)return res.status(500).send(err)
+
+                return res.send({inventLog: inventLog, countProd: countProd})
+            })
+        })
+    },
+
+    getWHActivityLog: (req, res)=> {
+        const {userLoc, page} = req.query
+        if(page) {
+            var sql = `select tp.product_name, pd.quantity, pd.date_in, pd.status, pd.notes from tbl_product_detail pd
+            join tbl_product tp on tp.product_id = pd.product_id
+            join tbl_location tl on tl.location_id = pd.location_id
+            where pd.location_id = ${db.escape(userLoc)} and !(pd.status in ('onPackaging') and pd.notes is null)
+            order by pd.date_in desc
+            limit ${(page-1)*5}, 5`
+        } else {
+            var sql = `select tp.product_name, tl.location_name, pd.quantity, pd.date_in, pd.status, pd.notes from tbl_product_detail pd
+            join tbl_product tp on tp.product_id = pd.product_id
+            join tbl_location tl on tl.location_id = pd.location_id
+            where pd.location_id = ${db.escape(userLoc)} and !(pd.status in ('onPackaging') and pd.notes is null)`
+        }
+
+        db.query(sql, (err, activityRes)=> {
+            if(err)return res.status(500).send(err)
+
+            sql = `select count(*) as amountofact from tbl_product_detail pd
+            join tbl_product tp on tp.product_id = pd.product_id
+            join tbl_location tl on tl.location_id = pd.location_id
+            where pd.location_id = ${db.escape(userLoc)} and !(pd.status in ('onPackaging') and pd.notes is null)`
+            db.query(sql, (err, countAct)=> {
+                if(err)return res.status(500).send(err)
+
+                return res.send({activityRes: activityRes, countAct: countAct})
+            })
+        })
+    },
+
 
     //========================================= TRANSACTION LOG ========================================
 

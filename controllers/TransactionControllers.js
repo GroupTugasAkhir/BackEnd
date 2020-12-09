@@ -2,6 +2,19 @@ const { db } = require('./../connection')
 const fs = require('fs')
 const {uploader} = require('./../helpers/uploader')
 
+
+const insertQuery = (sql) => {
+    return new Promise((resolve, reject)=> {
+        db.query(sql, (err, results)=> {
+            if (err) {
+                reject(err)
+            } else {
+                resolve(results)
+            }
+        })
+    })
+}
+
 module.exports = {
     onpaycc: (req, res)=> {
         const {user_id, idtrans, payment_proof, notes, matchLoc} = req.body
@@ -26,13 +39,32 @@ module.exports = {
                     date_in: Date.now(),
                     status: 'paymentCompleted',
                     payment_proof,
-                    location_id: locationRes[0].location_id
+                    location_id: locationRes[0].location_id,
+                    method: 'cc'
                 }
         
                 db.query(sql, updateTransData, (err)=> {
                     if (err) return res.status(500).send({message:err.message})
         
-                    return res.send('succeed') //tidak perlu getcart lagi karena jika berhasil, di front otomatis kosong
+                    sql = `select * from tbl_transaction_detail where transaction_id = ${db.escape(idtrans)}`
+                    db.query(sql, (err, selectTrans)=> {
+                        if (err) return res.status(500).send({message:err.message})
+
+                        let newDate = Date.now()
+
+                        let newArray = []
+                        selectTrans.forEach(val=> {
+                            newArray.push(insertQuery(`insert into tbl_product_detail set product_id = ${val.product_id}, location_id = ${locationRes[0].location_id}, quantity = ${val.quantity}, date_in = ${newDate}, status = 'onPackaging'`))
+                        })
+
+                        Promise.all(newArray).then(()=> {
+                            console.log('succeed');
+                            return res.send('succeed') //tidak perlu getcart lagi karena jika berhasil, di front otomatis kosong
+                        }).catch((err)=> {
+                            console.log(err);
+                            return res.status(500).send(err)
+                        })
+                    })
                 })
             })
         })
@@ -69,7 +101,8 @@ module.exports = {
                         date_in: Date.now(),
                         status: 'waitingAdminConfirmation',
                         payment_proof: invoicePath,
-                        location_id: locationRes[0].location_id
+                        location_id: locationRes[0].location_id,
+                        method: 'transfer'
                     }
             
                     db.query(sql, updateTransData, (err)=> {
@@ -78,8 +111,25 @@ module.exports = {
                             res.status(500).send({message: err.message})
                         }
                         
-                        console.log('succeed');
-                        return res.send('succeed') //tidak perlu getcart lagi karena jika berhasil, di front otomatis kosong
+                        sql = `select * from tbl_transaction_detail where transaction_id = ${db.escape(invoiceData.idtrans)}`
+                        db.query(sql, (err, selectTrans)=> {
+                            if (err) return res.status(500).send({message:err.message})
+
+                            let newDate = Date.now()
+
+                            let newArray = []
+                            selectTrans.forEach(val=> {
+                                newArray.push(insertQuery(`insert into tbl_product_detail set product_id = ${val.product_id}, location_id = ${locationRes[0].location_id}, quantity = ${val.quantity}, date_in = ${newDate}, status = 'onPackaging'`))
+                            })
+
+                            Promise.all(newArray).then(()=> {
+                                console.log('succeed');
+                                return res.send('succeed') //tidak perlu getcart lagi karena jika berhasil, di front otomatis kosong
+                            }).catch((err)=> {
+                                console.log(err);
+                                return res.status(500).send(err)
+                            })
+                        })
                     })
                 })
             })
