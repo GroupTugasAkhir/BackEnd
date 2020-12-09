@@ -740,20 +740,33 @@ module.exports = {
     },
 
     getTrxTrackingById: (req, res) => {
-        const {id} = req.params // transaction_id
+        const {idTrx, idLoc} = req.params // transaction_id
         let sql = `select * from 
-        (select td.product_id, td.quantity, p.product_name, p.image
+        (select td.transaction_detail_id, td.product_id, td.quantity, p.product_name, p.image
         from tbl_transaction_detail td join tbl_transaction t on td.transaction_id=t.transaction_id
         join tbl_product p on p.product_id = td.product_id
-        where t.transaction_id = ${db.escape(id)}) as tbl left join 
+        where t.transaction_id = ${db.escape(idTrx)}) as tbl left join 
         (select product_id as prod_id, sum(pd.quantity) as stock_warehouse
         from  tbl_product_detail pd 
-        where pd.location_id=1 group by product_id) as apa on tbl.product_id = apa.prod_id;`
+        where pd.location_id=${db.escape(idLoc)} and status != 'onPackaging' group by product_id) as apa on tbl.product_id = apa.prod_id;`
 
         db.query(sql, (err, dataTrxTrackingById)=>{
             if(err)return res.status(500).send(err)
 
             return res.send(dataTrxTrackingById)
+        })
+    },
+
+    getSupplyFlow: (req, res) => {
+        const {id} = req.params // transaction_detail_id
+        let sql = `select n.*, l.location_name as destination_name
+        from tbl_notification n join tbl_location l on n.destination=l.location_id
+        where n.transaction_detail_id=${db.escape(id)} order by n.date_in;`
+
+        db.query(sql, (err, dataSupplyById)=>{
+            if(err)return res.status(500).send(err)
+
+            return res.send(dataSupplyById)
         })
     },
 
@@ -766,7 +779,7 @@ module.exports = {
         join tbl_location l on t.location_id=l.location_id) as trans
         join (select transaction_id, sum(price*quantity) as total_price
         from tbl_transaction_detail group by transaction_id) as transdet 
-        on trans.transaction_id = transdet.transaction_id where trans.transaction_id=1;`
+        on trans.transaction_id = transdet.transaction_id where trans.transaction_id=${db.escape(id)};`
 
         db.query(sql, (err, dataPaymentCheck)=>{
             if(err)return res.status(500).send(err)
