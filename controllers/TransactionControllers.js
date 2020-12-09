@@ -3,7 +3,7 @@ const fs = require('fs')
 const {uploader} = require('./../helpers/uploader')
 
 
-const insertQuery = (sql) => {
+const updateQuery = (sql) => {
     return new Promise((resolve, reject)=> {
         db.query(sql, (err, results)=> {
             if (err) {
@@ -17,7 +17,7 @@ const insertQuery = (sql) => {
 
 module.exports = {
     onpaycc: (req, res)=> {
-        const {user_id, idtrans, payment_proof, notes, matchLoc} = req.body
+        const {user_id, idtrans, payment_proof, notes, matchLoc, userCart} = req.body
 
         console.log(matchLoc.longitude);
         console.log(matchLoc.latitude);
@@ -45,25 +45,17 @@ module.exports = {
         
                 db.query(sql, updateTransData, (err)=> {
                     if (err) return res.status(500).send({message:err.message})
-        
-                    sql = `select * from tbl_transaction_detail where transaction_id = ${db.escape(idtrans)}`
-                    db.query(sql, (err, selectTrans)=> {
-                        if (err) return res.status(500).send({message:err.message})
 
-                        let newDate = Date.now()
+                    let newArray = []
+                    userCart.forEach(val=> {
+                        newArray.push(updateQuery(`update tbl_transaction_detail set price = ${val.price} where transaction_id = ${val.idtrans} and product_id = ${val.idprod}`))
+                    })
 
-                        let newArray = []
-                        selectTrans.forEach(val=> {
-                            newArray.push(insertQuery(`insert into tbl_product_detail set product_id = ${val.product_id}, location_id = ${locationRes[0].location_id}, quantity = ${val.quantity}, date_in = ${newDate}, status = 'onPackaging'`))
-                        })
-
-                        Promise.all(newArray).then(()=> {
-                            console.log('succeed');
-                            return res.send('succeed') //tidak perlu getcart lagi karena jika berhasil, di front otomatis kosong
-                        }).catch((err)=> {
-                            console.log(err);
-                            return res.status(500).send(err)
-                        })
+                    Promise.all(newArray).then(()=> {
+                        console.log('succeed');
+                        return res.send('succeed') //tidak perlu getcart lagi karena jika berhasil, di front otomatis kosong
+                    }).catch((err)=> {
+                        return res.status(500).send({message:err.message})
                     })
                 })
             })
@@ -110,25 +102,17 @@ module.exports = {
                             fs.unlinkSync('./public'+invoicePath)
                             res.status(500).send({message: err.message})
                         }
-                        
-                        sql = `select * from tbl_transaction_detail where transaction_id = ${db.escape(invoiceData.idtrans)}`
-                        db.query(sql, (err, selectTrans)=> {
-                            if (err) return res.status(500).send({message:err.message})
 
-                            let newDate = Date.now()
+                        let newArray = []
+                        invoiceData.userCart.forEach(val=> {
+                            newArray.push(updateQuery(`update tbl_transaction_detail set price = ${val.price} where transaction_id = ${val.idtrans} and product_id = ${val.idprod}`))
+                        })
 
-                            let newArray = []
-                            selectTrans.forEach(val=> {
-                                newArray.push(insertQuery(`insert into tbl_product_detail set product_id = ${val.product_id}, location_id = ${locationRes[0].location_id}, quantity = ${val.quantity}, date_in = ${newDate}, status = 'onPackaging'`))
-                            })
-
-                            Promise.all(newArray).then(()=> {
-                                console.log('succeed');
-                                return res.send('succeed') //tidak perlu getcart lagi karena jika berhasil, di front otomatis kosong
-                            }).catch((err)=> {
-                                console.log(err);
-                                return res.status(500).send(err)
-                            })
+                        Promise.all(newArray).then(()=> {
+                            console.log('succeed');
+                            return res.send('succeed') //tidak perlu getcart lagi karena jika berhasil, di front otomatis kosong
+                        }).catch((err)=> {
+                            return res.status(500).send({message:err.message})
                         })
                     })
                 })
