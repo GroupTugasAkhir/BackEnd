@@ -119,27 +119,41 @@ module.exports = {
         })
     },
 
-    testes:(req, res)=>{
-        var values = [
-            // {product_category_id:7, product_id:8, category_id:10},
-            // {product_category_id:8, product_id:8, category_id:14}
-            { category_id:11, product_category_id:7},
-            { category_id:14, product_category_id:8}
-        ]
-        let sql = ''
-        values.forEach(function (val) {
-            sql += `UPDATE ref_product_category SET category_id = ${val.category_id}  
-            WHERE product_category_id = ${val.product_category_id};`
-        })
+    getStock: (req, res) => { //get stock and onpackaging stock from current WH
+        const {id} = req.params
+        let sql = `select * from tbl_location`
+        db.query(sql, (err, listWarehouse)=>{
+            if(err)return res.status(500).send(err)
+            console.log(listWarehouse)
 
-        db.query(sql, (err)=>{
-            if (err) return res.status(500).send(err)
-
-            db.query(`select * from ref_product_category`, (err, dataProduct)=>{
-                if (err) return res.status(500).send(err)
-                
-                return res.status(200).send(dataProduct)
+            var num = 1
+            var counter = 0
+            sql = ''
+            listWarehouse.forEach(function (val) {
+                if(counter >= num){
+                    sql += 'union all'
+                }
+                counter++
+                num = counter
+                sql += `(select * from (-- stock semua gudang
+                    select pd.product_id, p.product_name, pd.location_id, pd.quantity, sum(quantity) as stock, pd.status
+                    from tbl_product_detail pd join tbl_product p on pd.product_id=p.product_id
+                    join tbl_location l on pd.location_id=l.location_id
+                    where pd.location_id=${val.location_id} group by pd.product_id) as stck
+                    left join (-- on packaging
+                    select pd.product_id as prod_id, sum(quantity) as stock_packaging, pd.status as status_packaging
+                    from tbl_product_detail pd join tbl_product p on pd.product_id=p.product_id
+                    join tbl_location l on pd.location_id=l.location_id
+                    where pd.location_id=${val.location_id} and pd.status='onPackaging' group by pd.product_id) as opkg on stck.product_id = opkg.prod_id
+                    where stck.product_id=${db.escape(id)})`
             })
+            var sqlFull = `select loc.location_id as loc_id, loc.location_name, datas.*  from tbl_location loc left join
+            (${sql}) as datas on loc.location_id=datas.location_id;`
+            db.query(sqlFull, (err, dataPerStockAllWH)=>{
+                if(err)return res.status(500).send(err)
+                return res.send(dataPerStockAllWH)
+            })
+
         })
     },
 
@@ -175,7 +189,7 @@ module.exports = {
 
 
                         sql = `Update tbl_product set ? where product_id = ${db.escape(id)}`
-                        console.log('sini')
+                        // console.log('sini')
                         db.query(sql, dataUpdate, (err)=>{
                             if(err) {
                                 if(imagePath){
@@ -194,60 +208,85 @@ module.exports = {
                                     return res.status(500).send(err)
                                 }
                                 
-                                sql = ''
-                                data.oldcategory.forEach(function (val) {
-                                    sql += `delete from ref_product_category
-                                    where product_category_id = ${db.escape(val.product_category_id)};`
-                                })
-                                db.query(sql, (err)=>{
-                                    if (err) {
-                                        return db.rollback(()=>{
-                                            res.status(500).send(err)
-                                        })
-                                    }
-    
-                                    sql="insert into ref_product_category (product_id, category_id) values ?"
-                        
-                                    var insertRefCategory = data.newcategory.map((val,index)=>{
-                                        console.log(val)
-                                        return [
-                                            data.product_id,
-                                            val.value
-                                        ]
+                                if(data.newcategory){
+                                    sql = ''
+                                    data.oldcategory.forEach(function (val) {
+                                        sql += `delete from ref_product_category
+                                        where product_category_id = ${db.escape(val.product_category_id)};`
                                     })
-                                    db.query(sql, [insertRefCategory], (err)=>{
+                                    // console.log(data.oldcategory)
+                                    db.query(sql, (err)=>{
                                         if (err) {
                                             return db.rollback(()=>{
+                                                // console.log('sss')
+                                                console.log(err)
                                                 res.status(500).send(err)
                                             })
                                         }
-
-                                        db.commit((err)=>{
+                                        // console.log('aaaaaaaaaaaaaaaaaaa')
+                                        sql="insert into ref_product_category (product_id, category_id) values ?"
+                            
+                                        console.log(insertRefCategory)
+                                        var insertRefCategory = data.newcategory.map((val,index)=>{
+                                            console.log(val)
+                                            return [
+                                                data.product_id,
+                                                val.value
+                                            ]
+                                        })
+                                        // console.log('kkk')
+                                        db.query(sql, [insertRefCategory], (err)=>{
                                             if (err) {
                                                 return db.rollback(()=>{
                                                     res.status(500).send(err)
                                                 })
                                             }
-                                            sql = `select pd.product_detail_id, pd.product_id, 
-                                            p.product_name, p.image, p.price, sum(quantity) as stock, p.description
-                                            from tbl_product p join tbl_product_detail pd on p.product_id = pd.product_id 
-                                            group by product_id;`
-                                            db.query(sql, (err, dataProduct)=>{
-                                                if (err) return res.status(500).send(err)
-            
-                                                sql = `select p.product_id, c.category_id, p.product_name, c.category_name
-                                                from tbl_category c join ref_product_category pc on c.category_id = pc.category_id
-                                                join tbl_product p on pc.product_id = p.product_id ;`
-                                                db.query(sql, (err, datarefcategory)=>{
+    
+                                            db.commit((err)=>{
+                                                if (err) {
+                                                    return db.rollback(()=>{
+                                                        res.status(500).send(err)
+                                                    })
+                                                }
+                                                sql = `select pd.product_detail_id, pd.product_id, 
+                                                p.product_name, p.image, p.price, sum(quantity) as stock, p.description
+                                                from tbl_product p join tbl_product_detail pd on p.product_id = pd.product_id 
+                                                group by product_id;`
+                                                db.query(sql, (err, dataProduct)=>{
                                                     if (err) return res.status(500).send(err)
-            
-                                                    return res.status(200).send({dataProduct, datarefcategory})
+                
+                                                    sql = `select p.product_id, c.category_id, p.product_name, c.category_name
+                                                    from tbl_category c join ref_product_category pc on c.category_id = pc.category_id
+                                                    join tbl_product p on pc.product_id = p.product_id ;`
+                                                    db.query(sql, (err, datarefcategory)=>{
+                                                        if (err) return res.status(500).send(err)
+                
+                                                        return res.status(200).send({dataProduct, datarefcategory})
+                                                    })
                                                 })
                                             })
+        
                                         })
-    
                                     })
-                                })
+                                }else{
+                                    sql = `select pd.product_detail_id, pd.product_id, 
+                                    p.product_name, p.image, p.price, sum(quantity) as stock, p.description
+                                    from tbl_product p join tbl_product_detail pd on p.product_id = pd.product_id 
+                                    group by product_id;`
+                                    db.query(sql, (err, dataProduct)=>{
+                                        if (err) return res.status(500).send(err)
+    
+                                        sql = `select p.product_id, c.category_id, p.product_name, c.category_name
+                                        from tbl_category c join ref_product_category pc on c.category_id = pc.category_id
+                                        join tbl_product p on pc.product_id = p.product_id ;`
+                                        db.query(sql, (err, datarefcategory)=>{
+                                            if (err) return res.status(500).send(err)
+    
+                                            return res.status(200).send({dataProduct, datarefcategory})
+                                        })
+                                    })
+                                }
+                                
                             })
 
                             
@@ -376,7 +415,7 @@ module.exports = {
         console.log(req.body)
         // const data = JSON.parse(req.body)
         const data = req.body
-        console.log(data)
+        // console.log(data)
         const dataInsert = {...data, date_in: Date.now()}
         // const dataInsert = {
         //     product_id: data.product_id,

@@ -6,9 +6,9 @@ const {AdminControllers} = require('../controllers')
 Router.post('/addProduct', AdminControllers.addProduct)
 Router.get('/getProduct', AdminControllers.getProduct)
 Router.get('/getProductStock/:id', AdminControllers.getProductandStock)
+Router.get('/getStock/:id', AdminControllers.getStock)
 Router.put('/editProduct/:id', AdminControllers.editProduct)
 Router.delete('/deleteProduct/:id', AdminControllers.deleteProduct)
-Router.post('/testes', AdminControllers.testes)
 
 //For Home Page
 Router.get('/getProduct/:id', AdminControllers.getProductbyId)
