@@ -12,5 +12,7 @@ Router.post('/confirmRequest',NotificationControllers.confirmingRequest)
 Router.post('/confirmUserRequest',NotificationControllers.confirmUserReq)
 Router.post('/onPackagingItem',NotificationControllers.onPackagingItem)
 Router.post('/onWaitingItem',NotificationControllers.onWaitingItem)
+Router.get('/checkItem/:transaction_id',NotificationControllers.checkConfirmItem)
+Router.post('/sendItem/:transaction_id',NotificationControllers.sendItem)
 
 module.exports = Router
