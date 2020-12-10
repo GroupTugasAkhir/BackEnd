@@ -136,7 +136,7 @@ module.exports = {
                 sql=`insert into tbl_product_detail set ?`
                 db.query(sql,wait,(err)=>{
                     if(err) return res.status(500).send({message:err.message})
-                    res.send('request have been made')
+                    return res.send('request have been made')
                 })
             })            
         })
@@ -169,7 +169,13 @@ module.exports = {
                 sql = `update tbl_notification set status = 'confirm' where notification_id = ?`
                 db.query(sql,notification_id,(err)=>{
                     if(err) return res.status(500).send({message:err.message})
-                    return res.send('confirmed already')
+
+                    sql = `update tbl_product_detail set notes = 'waitingDone' where product_id = ? and location_id = ? and notes like 'onWaiting%'`
+                    db.query(sql, [product_id,destination_id], (err)=> {
+                        if(err) return res.status(500).send({message:err.message})
+
+                        return res.send('confirmed already')
+                    })
                 })
             })
         })
