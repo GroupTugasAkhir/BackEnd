@@ -120,36 +120,50 @@ module.exports = {
     },
 
     getStock: (req, res) => { //get stock and onpackaging stock from current WH
-        const {id} = req.params
+        const {id} = req.params // product_id
         let sql = `select * from tbl_location`
         db.query(sql, (err, listWarehouse)=>{
             if(err)return res.status(500).send(err)
             console.log(listWarehouse)
 
-            var num = 1
-            var counter = 0
-            sql = ''
-            listWarehouse.forEach(function (val) {
-                if(counter >= num){
-                    sql += 'union all'
-                }
-                counter++
-                num = counter
-                sql += `(select * from (-- stock semua gudang
-                    select pd.product_id, p.product_name, pd.location_id, pd.quantity, sum(quantity) as stock, pd.status
-                    from tbl_product_detail pd join tbl_product p on pd.product_id=p.product_id
-                    join tbl_location l on pd.location_id=l.location_id
-                    where pd.location_id=${val.location_id} group by pd.product_id) as stck
-                    left join (-- on packaging
-                    select pd.product_id as prod_id, sum(quantity) as stock_packaging, pd.status as status_packaging
-                    from tbl_product_detail pd join tbl_product p on pd.product_id=p.product_id
-                    join tbl_location l on pd.location_id=l.location_id
-                    where pd.location_id=${val.location_id} and pd.status='onPackaging' group by pd.product_id) as opkg on stck.product_id = opkg.prod_id
-                    where stck.product_id=${db.escape(id)})`
-            })
-            var sqlFull = `select loc.location_id as loc_id, loc.location_name, datas.*  from tbl_location loc left join
-            (${sql}) as datas on loc.location_id=datas.location_id;`
-            db.query(sqlFull, (err, dataPerStockAllWH)=>{
+            sql = `select loc.location_id as loc_id, loc.location_name, datas.product_name, 
+            datas.available_stock, datas.status, prod_id, lid, hold_stock, hold_status
+            from tbl_location loc left join
+            (select * from (-- stock semua gudang
+            select pd.product_id, p.product_name, pd.location_id, pd.quantity, sum(quantity) as available_stock, pd.status
+            from tbl_product_detail pd join tbl_product p on pd.product_id=p.product_id
+            join tbl_location l on pd.location_id=l.location_id
+            where pd.status !='onPackaging' group by pd.product_id, pd.location_id) as stck
+            left join (-- on packaging
+            select pd.product_id as prod_id, pd.location_id as lid, sum(quantity) as hold_stock, pd.status as hold_status
+            from tbl_product_detail pd join tbl_product p on pd.product_id=p.product_id
+            join tbl_location l on pd.location_id=l.location_id
+            where pd.status='hold' group by pd.product_id, lid) as opkg on stck.product_id = opkg.prod_id and stck.location_id=opkg.lid
+            where stck.product_id=${db.escape(id)}) as datas on loc.location_id=datas.location_id;`
+            // var num = 1
+            // var counter = 0
+            // sql = ''
+            // listWarehouse.forEach(function (val) {
+            //     if(counter >= num){
+            //         sql += 'union all'
+            //     }
+            //     counter++
+            //     num = counter
+            //     sql += `(select * from (-- stock semua gudang
+            //         select pd.product_id, p.product_name, pd.location_id, pd.quantity, sum(quantity) as stock, pd.status
+            //         from tbl_product_detail pd join tbl_product p on pd.product_id=p.product_id
+            //         join tbl_location l on pd.location_id=l.location_id
+            //         where pd.location_id=${val.location_id} group by pd.product_id) as stck
+            //         left join (-- on packaging
+            //         select pd.product_id as prod_id, sum(quantity) as stock_packaging, pd.status as status_packaging
+            //         from tbl_product_detail pd join tbl_product p on pd.product_id=p.product_id
+            //         join tbl_location l on pd.location_id=l.location_id
+            //         where pd.location_id=${val.location_id} and pd.status='onPackaging' group by pd.product_id) as opkg on stck.product_id = opkg.prod_id
+            //         where stck.product_id=${db.escape(id)})`
+            // })
+            // var sqlFull = `select loc.location_id as loc_id, loc.location_name, datas.*  from tbl_location loc left join
+            // (${sql}) as datas on loc.location_id=datas.location_id;`
+            db.query(sql, (err, dataPerStockAllWH)=>{
                 if(err)return res.status(500).send(err)
                 return res.send(dataPerStockAllWH)
             })
@@ -417,21 +431,20 @@ module.exports = {
         const data = req.body
         // console.log(data)
         const dataInsert = {...data, date_in: Date.now()}
-        // const dataInsert = {
-        //     product_id: data.product_id,
-        //     location_id: data.location_id,
-        //     quantity: data.quantity,
-        //     date_in : Date.now(),
-        //     status: data.status
-        // }
         console.log(dataInsert)
         let sql = `insert into tbl_product_detail set ?`
         db.query(sql, dataInsert,(err)=>{
             if(err) return res.status(500).send(err)
-            // console.log('masuk dbad')
-            sql = `select p.product_name, p.image, pd.*, sum(quantity) as real_quantity
-            from tbl_product p join tbl_product_detail pd on p.product_id = pd.product_id
-            where location_id=${db.escape(dataInsert.location_id)} group by product_id;`
+            sql = `select av_st.*, hd_st.hold_stock from
+            (select p.product_id, pd.product_detail_id, p.product_name, p.image, sum(quantity) as available_stock 
+            from tbl_product p join tbl_product_detail pd on p.product_id = pd.product_id 
+            where location_id=${db.escape(dataInsert.location_id)} and pd.status !='onPackaging' group by product_id) as av_st
+            left join
+            (select  pd.product_id as prod_id, sum(quantity) as hold_stock 
+            from tbl_product p join tbl_product_detail pd on p.product_id = pd.product_id 
+            where location_id=${db.escape(dataInsert.location_id)} and pd.status ='hold' group by pd.product_id)
+            as hd_st on av_st.product_id = hd_st.prod_id`
+
             db.query(sql, (err,results)=>{
                 if(err)return res.status(500).send(err)
                 return res.status(200).send(results)
@@ -456,7 +469,8 @@ module.exports = {
         left join
         (select  pd.product_id as prod_id, sum(quantity) as hold_stock 
         from tbl_product p join tbl_product_detail pd on p.product_id = pd.product_id 
-        where location_id=${db.escape(id)} and pd.status ='hold' group by pd.product_id) as hd_st on av_st.product_id = hd_st.prod_id`
+        where location_id=${db.escape(id)} and pd.status ='hold' group by pd.product_id)
+        as hd_st on av_st.product_id = hd_st.prod_id`
         db.query(sql, (err, dataCurrentWH)=>{
             if(err)return res.status(500).send(err)
             
@@ -465,53 +479,6 @@ module.exports = {
                 if(err)return res.status(500).send(err)
                 return res.status(200).send({dataCurrentWH, dataMainProd})
             })
-        })
-    },
-
-    editWHProduct: (req, res) => {
-        let data = req.body
-        const {id} = req.params
-        let sql = `Select * from tbl_product_detail where product_detail_id = ${db.escape(id)}`
-        db.query(sql, (err, results)=>{
-            if(err)return res.status(500).send(err)
-
-            if(results.length){
-                sql = `Update tbl_product_detail set ? where product_detail_id = ${db.escape(id)}`
-                console.log('sini')
-                db.query(sql, data, (err)=>{
-                    if(err)return res.status(500).send(err)
-                    console.log('asadaa')
-                    sql = `Select * from tbl_product_detail`
-                    db.query(sql, (err, allProducts)=>{
-                        if(err)return res.status(500).send(err)
-                        return res.status(200).send(allProducts)
-                    })
-                })
-            }else{
-                return res.status(500).send('product tidak ada')
-            }
-        })
-    },
-
-    deleteWHProduct: (req, res) => {
-        const {id} = req.params
-        let sql = `Select * from tbl_product_detail where product_detail_id = ${db.escape(id)}`
-        db.query(sql, (err, dataProduct)=>{
-            if(err)return res.status(500).send(err)
-            if(dataProduct.length){
-                sql = `delete from tbl_product_detail where product_detail_id = ${db.escape(id)}`
-                db.query(sql, (err)=>{
-                    if(err)return res.status(500).send(err)
-
-                    sql = `Select * from tbl_product_detail`
-                    db.query(sql, (err, allProducts)=>{
-                        if(err)return res.status(500).send(err)
-                        return res.status(200).send(allProducts)
-                    })
-                })
-            }else{
-                return res.status(500).send('product tidak ada')
-            }
         })
     },
 

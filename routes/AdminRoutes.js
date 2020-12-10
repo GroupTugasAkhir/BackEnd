@@ -23,8 +23,6 @@ Router.get('/category', AdminControllers.getCategory)
 Router.post('/addWHProduct', AdminControllers.addWHProduct) 
 Router.get('/getWHProduct', AdminControllers.getAllWHProduct)
 Router.get('/getCurrentWHProduct/:id', AdminControllers.getCurrentWHProduct)
-Router.put('/editWHProduct/:id', AdminControllers.editWHProduct)
-Router.delete('/deleteWHProduct/:id', AdminControllers.deleteWHProduct)
 
 //For category
 Router.post('/addCategory', AdminControllers.addCategory)
