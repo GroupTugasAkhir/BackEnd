@@ -3,10 +3,12 @@ const { db } = require('./../connection')
 module.exports = {
     getCart: (req, res)=> {
         const {user_id} = req.params
-        let sql = `select tp.product_name, tp.price, tp.image, ttd.quantity, tp.product_id as idprod, tt.transaction_id as idtrans from tbl_product tp
+        let sql = `select sum(pd.quantity) as totalprod, tp.product_name, tp.price, tp.image, ttd.quantity, tp.product_id as idprod, tt.transaction_id as idtrans from tbl_product tp
         join tbl_transaction_detail ttd on tp.product_id = ttd.product_id
         join tbl_transaction tt on tt.transaction_id = ttd.transaction_id
-        where status = 'onCart' and tt.user_id = ?`
+        join tbl_product_detail pd on pd.product_id = ttd.product_id
+        where tt.status = 'onCart' and tt.user_id = ?
+        group by pd.product_id`
 
         db.query(sql, [user_id], (err, cartData)=> {
             if(err) return res.status(500).send({message:err.message})

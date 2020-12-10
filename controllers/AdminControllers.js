@@ -359,11 +359,13 @@ module.exports = {
 
     getProductbyId: (req, res)=>{
         const {id} = req.params
-        let sql = `SELECT p.product_id, p.description, p.image, p.price, p.product_name, c.category_id, c.category_name FROM ref_product_category pc
+        let sql = `SELECT sum(pd.quantity) as totalprod, p.product_id, p.description, p.image, p.price, p.product_name, c.category_id, c.category_name FROM ref_product_category pc
         inner join tbl_product p
         on p.product_id = pc.product_id
         inner join tbl_category c
         on c.category_id = pc.category_id
+        inner join tbl_product_detail pd
+        on pd.product_id = p.product_id
         where p.product_id = ?`
         db.query(sql,[id],(err, dataproduct)=>{
             if (err) return res.status(500).send(err)

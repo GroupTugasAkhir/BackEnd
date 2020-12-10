@@ -20,11 +20,11 @@ module.exports = {
     register:(req,res)=>{
         const {username, email, password} = req.body
         let hashPassword = encrypt(password)
-        let sql = 'select * from tbl_user where username = ?'
-        db.query(sql,[username],(err,result)=>{
+        let sql = 'select * from tbl_user where username = ? or email = ?'
+        db.query(sql,[username, email],(err,result)=>{
             if(err) return res.status('500').send({message:err})
             if(result.length){
-                return res.status('500').send({message:'username is already register'})
+                return res.status('500').send({message:'username/email is already register'})
             } else{
                 let data = {
                     username,
