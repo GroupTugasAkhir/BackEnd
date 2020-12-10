@@ -449,21 +449,21 @@ module.exports = {
 
     getCurrentWHProduct: (req, res) => {
         const {id} = req.params //location_id
-        let sql = `select p.product_name, p.image, pd.*, sum(quantity) as real_quantity from tbl_product p join tbl_product_detail pd on p.product_id = pd.product_id where location_id=${db.escape(id)} group by product_id;`
+        let sql = `select av_st.*, hd_st.hold_stock from
+        (select p.product_id, pd.product_detail_id, p.product_name, p.image, sum(quantity) as available_stock 
+        from tbl_product p join tbl_product_detail pd on p.product_id = pd.product_id 
+        where location_id=${db.escape(id)} and pd.status !='onPackaging' group by product_id) as av_st
+        left join
+        (select  pd.product_id as prod_id, sum(quantity) as hold_stock 
+        from tbl_product p join tbl_product_detail pd on p.product_id = pd.product_id 
+        where location_id=${db.escape(id)} and pd.status ='hold' group by pd.product_id) as hd_st on av_st.product_id = hd_st.prod_id`
         db.query(sql, (err, dataCurrentWH)=>{
             if(err)return res.status(500).send(err)
             
             sql = `select * from tbl_product`
             db.query(sql, (err, dataMainProd)=>{
                 if(err)return res.status(500).send(err)
-
-                sql = `select p.product_name, p.image, pd.*, sum(quantity) as real_quantity
-                from tbl_product p join tbl_product_detail pd on p.product_id = pd.product_id
-                where location_id=${db.escape(id)} and status='onPackaging' group by product_id;`
-                db.query(sql, (err, dataSoldCurrentWH)=>{
-                    if(err)return res.status(500).send(err)
-                    return res.status(200).send({dataCurrentWH, dataMainProd, dataSoldCurrentWH})
-                })
+                return res.status(200).send({dataCurrentWH, dataMainProd})
             })
         })
     },
