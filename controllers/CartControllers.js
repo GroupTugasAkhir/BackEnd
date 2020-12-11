@@ -7,7 +7,7 @@ module.exports = {
         join tbl_transaction_detail ttd on tp.product_id = ttd.product_id
         join tbl_transaction tt on tt.transaction_id = ttd.transaction_id
         join tbl_product_detail pd on pd.product_id = ttd.product_id
-        where tt.status = 'onCart' and tt.user_id = ?
+        where tt.status = 'onCart' and tt.user_id = ? and !(pd.status in ('add', 'modify') and pd.notes is not null)
         group by pd.product_id`
 
         db.query(sql, [user_id], (err, cartData)=> {

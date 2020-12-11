@@ -366,7 +366,7 @@ module.exports = {
         on c.category_id = pc.category_id
         inner join tbl_product_detail pd
         on pd.product_id = p.product_id
-        where p.product_id = ?`
+        where p.product_id = ? and !(pd.status in ('add', 'modify') and pd.notes is not null)`
         db.query(sql,[id],(err, dataproduct)=>{
             if (err) return res.status(500).send(err)
             return res.status(200).send(dataproduct)
@@ -375,7 +375,13 @@ module.exports = {
 
     getProductbyPage:(req,res)=>{
         const {page} = req.params
-        let sql =`select * from tbl_product limit ${(page-1)*5},8`
+        let sql = `select p.*, sum(pd.quantity) as totalprod from tbl_product p
+        join tbl_product_detail pd on pd.product_id = p.product_id
+        where !(pd.status in ('add', 'modify') and pd.notes is not null)
+        group by pd.product_id
+        having totalprod > 0
+        limit ${(page-1)*5},8;`
+        // let sql =`select * from tbl_product limit ${(page-1)*5},8`
         db.query(sql,(err,result)=>{
             if(err)return res.status(500).send(err)
             return res.status(200).send(result)
