@@ -15,6 +15,27 @@ module.exports = {
                 return res.send([result1,result2])
             })
         })
+    },
+    reportProduct:(req,res)=>{
+        let sql = `SELECT pd.product_id, sum(pd.quantity) as qty, p.product_name FROM tbl_product_detail pd
+        inner join tbl_product p
+        on p.product_id = pd.product_id
+        group by product_id`
+        db.query(sql,(err,result)=>{
+            if(err) return res.status(500).send({message:err.message})
+            return res.send(result)
+        })
+    },
+    reportBranch:(req,res)=>{
+        let sql =`select n.destination, count(notification_id) as act_branch, l.location_name from tbl_notification n
+        inner join tbl_location l
+        on l.location_id = n.destination
+        where n.from = 0
+        group by l.location_id`
+        db.query(sql,(err,result)=>{
+            if(err) return res.status(500).send({message:err.message})
+            return res.send(result)
+        })
     }
 
 }

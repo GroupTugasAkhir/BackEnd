@@ -139,7 +139,7 @@ module.exports = {
                 let wait = {
                     product_id : product_id,
                     location_id : data.destination,
-                    quantity : temp * -1,
+                    quantity : 0,
                     date_in : Date.now(),
                     status : 'modify',
                     notes : `onWaiting ${temp}`
