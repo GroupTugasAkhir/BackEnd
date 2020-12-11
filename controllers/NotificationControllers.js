@@ -57,7 +57,7 @@ module.exports = {
         const {location_id} = req.body
         if(location_id){
             let sql = `select n.notification_id, n.transaction_detail_id, n.quantity as req_qty, n.notes,
-            n.from, n.destination, n.status, p.product_id, p.product_name, p.image, l.location_name
+            n.from, n.destination, n.status, p.product_id, p.product_name, p.image, l.location_name, l.location_id
             from tbl_notification n
             inner join tbl_transaction_detail td
             on n.transaction_detail_id = td.transaction_detail_id
@@ -235,11 +235,6 @@ module.exports = {
                             })
                         })
                     })
-                    // sql = `update tbl_product_detail set notes = 'waitingDone' where product_id = ? and location_id = ? and notes like 'onWaiting%'`
-                    // db.query(sql, [product_id,destination_id], (err)=> {
-                    //     if(err) return res.status(500).send({message:err.message})
-
-                    // })`
                 })
             })
         })
@@ -277,9 +272,47 @@ module.exports = {
         and n.from = 0
         and status = 'request'
         and notes != 'waitingConfirmation'`
-        db.query(sql,[location_id,location_id,transaction_id],(err,result)=>{
+        db.query(sql,[location_id,location_id,transaction_id],(err,result1)=>{
             if(err) return res.status(500).send({message:err.message})
-            return res.send(result)
+            sql = `select n.notification_id, n.from, n.destination, n.quantity as req_qty, n.status, n.notes,
+            td.transaction_detail_id, td.transaction_id,
+            p.product_name, p.product_id, p.image
+            from tbl_notification n
+            inner join tbl_transaction_detail td
+            on td.transaction_detail_id = n.transaction_detail_id
+            inner join tbl_product p 
+            on p.product_id = td.product_id
+            inner join (select pd.product_id, sum(pd.quantity) as stock, location_id from tbl_product_detail pd
+            where pd.location_id = ?
+            group by pd.product_id, pd.location_id) jt
+            on jt.product_id = p.product_id
+            where jt.location_id = ?
+            and transaction_id = ?
+            and n.from = 0
+            and status = 'confirm'`
+            db.query(sql,[location_id,location_id,transaction_id],(err,result2)=>{
+                if(err) return res.status(500).send({message:err.message})
+                sql = `select n.notification_id, n.from, n.destination, n.quantity as req_qty, n.status, n.notes,
+                td.transaction_detail_id, td.transaction_id,
+                p.product_name, p.product_id, p.image
+                from tbl_notification n
+                inner join tbl_transaction_detail td
+                on td.transaction_detail_id = n.transaction_detail_id
+                inner join tbl_product p 
+                on p.product_id = td.product_id
+                inner join (select pd.product_id, sum(pd.quantity) as stock, location_id from tbl_product_detail pd
+                where pd.location_id = ?
+                group by pd.product_id, pd.location_id) jt
+                on jt.product_id = p.product_id
+                where jt.location_id = ?
+                and transaction_id = ?
+                and n.from = 0
+                and notes = 'waitingConfirmation';`
+                db.query(sql,[location_id,location_id,transaction_id],(err,result3)=>{
+                    if(err) return res.status(500).send({message:err.message})
+                    return res.send([result1,result2,result3])
+                })
+            })
         })
     },
 
@@ -328,18 +361,6 @@ module.exports = {
 
     onPackagingItem:(req,res)=>{
         const {location_id, transaction_id} = req.body
-        // let sql = `SELECT distinct(td.transaction_detail_id), t.transaction_id, td.product_id, td.quantity as req_qty, t.location_id,
-        // p.product_name, p.image, pd.quantity, pd.notes
-        // FROM tbl_transaction_detail td
-        // inner join tbl_transaction t
-        // on t.transaction_id = td.transaction_id
-        // inner join tbl_product p
-        // on p.product_id = td.product_id
-        // inner join tbl_product_detail pd
-        // on pd.product_id = p.product_id
-        // inner join tbl_notification n
-        // on n.transaction_detail_id = td.transaction_detail_id
-        // where t.location_id = ? and t.transaction_id = ? and pd.notes = 'onPackaging'`
         let sql = `select n.notification_id, n.from, n.destination, n.quantity as req_qty, n.status, n.notes,
         td.transaction_detail_id, td.transaction_id,
         p.product_name, p.product_id, p.image

@@ -7,4 +7,5 @@ module.exports = {
     CartRoutes: require('./CartRoutes'),
     TransactionRoutes: require('./TransactionRoutes'),
     NotificationRoutes: require('./NotificationRoutes'),
+    ReportRoutes: require('./ReportRoutes'),
 }
