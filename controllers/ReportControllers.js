@@ -36,6 +36,16 @@ module.exports = {
             if(err) return res.status(500).send({message:err.message})
             return res.send(result)
         })
+    },
+    reportTransaction:(req,res)=>{
+        let sql = `SELECT t.date_in, td.price FROM tbl_transaction t
+        inner join tbl_transaction_detail td
+        on td.transaction_id = t.transaction_id
+        where t.status != 'onCart'
+        limit 10`
+        db.query(sql,(err,result)=>{
+            if(err) return res.status(500).send({message:err.message})
+            return res.send(result)
+        })
     }
-
 }
