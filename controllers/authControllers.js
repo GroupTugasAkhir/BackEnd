@@ -41,11 +41,11 @@ module.exports = {
                     sql = 'select * from tbl_user where user_id = ?'
                     db.query(sql, [result.insertId],(err, user_data) => {
                         if(err) return res.status(500).send({message:err.message})
-                        const htmlRender =  fs.readFileSync('index.html','utf8')
+                        const htmlRender =  fs.readFileSync('email.html','utf8')
                         const template = handlebars.compile(htmlRender)
                         const token = createJWToken({user_id:user_data[0].user_id, username:user_data[0].username })
                         const link = `http://localhost:3000/verified?token=${token}`
-                        const htmlEmail = template({username:user_data[0].username, link})
+                        const htmlEmail = template({username:user_data[0].username, email: email, link})
                         transporter.sendMail({
                             from:'akei online furniture <hasianamin14@gmail.com',
                             to:email,
