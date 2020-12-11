@@ -4,6 +4,7 @@ const CartControllers = require('./CartControllers')
 const TransactionControllers = require('./TransactionControllers')
 const NotificationControllers = require('./NotificationControllers')
 const ReportControllers = require('./ReportControllers')
+const UserOrdersControllers = require('./UserOrdersControllers')
 
 module.exports = {
     authControllers,
@@ -11,5 +12,6 @@ module.exports = {
     CartControllers,
     TransactionControllers,
     NotificationControllers,
-    ReportControllers
+    ReportControllers,
+    UserOrdersControllers
 }
