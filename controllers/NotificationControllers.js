@@ -125,9 +125,9 @@ module.exports = {
                 status : 'request',
                 notes : `notif_id ${notification_id}`
             }
-            if(location_id===1){
+            if(location_id==1){
                 data = {...data,destination:2}
-            } else if (location_id===2){
+            } else if (location_id==2){
                 data = {...data,destination:3}
             } else {
                 data = {...data,destination:1}
