@@ -8,4 +8,5 @@ module.exports = {
     TransactionRoutes: require('./TransactionRoutes'),
     NotificationRoutes: require('./NotificationRoutes'),
     ReportRoutes: require('./ReportRoutes'),
+    UserOrdersRoutes : require('./UserOrdersRoutes')
 }

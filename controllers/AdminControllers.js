@@ -140,29 +140,6 @@ module.exports = {
             join tbl_location l on pd.location_id=l.location_id
             where pd.status='hold' group by pd.product_id, lid) as opkg on stck.product_id = opkg.prod_id and stck.location_id=opkg.lid
             where stck.product_id=${db.escape(id)}) as datas on loc.location_id=datas.location_id;`
-            // var num = 1
-            // var counter = 0
-            // sql = ''
-            // listWarehouse.forEach(function (val) {
-            //     if(counter >= num){
-            //         sql += 'union all'
-            //     }
-            //     counter++
-            //     num = counter
-            //     sql += `(select * from (-- stock semua gudang
-            //         select pd.product_id, p.product_name, pd.location_id, pd.quantity, sum(quantity) as stock, pd.status
-            //         from tbl_product_detail pd join tbl_product p on pd.product_id=p.product_id
-            //         join tbl_location l on pd.location_id=l.location_id
-            //         where pd.location_id=${val.location_id} group by pd.product_id) as stck
-            //         left join (-- on packaging
-            //         select pd.product_id as prod_id, sum(quantity) as stock_packaging, pd.status as status_packaging
-            //         from tbl_product_detail pd join tbl_product p on pd.product_id=p.product_id
-            //         join tbl_location l on pd.location_id=l.location_id
-            //         where pd.location_id=${val.location_id} and pd.status='onPackaging' group by pd.product_id) as opkg on stck.product_id = opkg.prod_id
-            //         where stck.product_id=${db.escape(id)})`
-            // })
-            // var sqlFull = `select loc.location_id as loc_id, loc.location_name, datas.*  from tbl_location loc left join
-            // (${sql}) as datas on loc.location_id=datas.location_id;`
             db.query(sql, (err, dataPerStockAllWH)=>{
                 if(err)return res.status(500).send(err)
                 return res.send(dataPerStockAllWH)

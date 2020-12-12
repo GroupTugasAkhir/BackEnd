@@ -19,7 +19,7 @@ app.get('/', (req, res)=>{
     res.send('<h1> Welcome to API AKEI</h1>')
 })
 
-const {authRoutes, AdminRoutes, CartRoutes, TransactionRoutes, NotificationRoutes, ReportRoutes } = require('./routes')
+const {authRoutes, AdminRoutes, CartRoutes, TransactionRoutes, NotificationRoutes, ReportRoutes, UserOrdersRoutes } = require('./routes')
 
 app.use('/auth',authRoutes)
 app.use('/admin', AdminRoutes)
@@ -27,5 +27,6 @@ app.use('/cart', CartRoutes)
 app.use('/transaction', TransactionRoutes)
 app.use('/notification', NotificationRoutes)
 app.use('/report', ReportRoutes)
+app.use('/orders', UserOrdersRoutes)
 
 app.listen(5001,()=>console.log('port 5001 is active'))
