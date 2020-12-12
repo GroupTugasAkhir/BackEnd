@@ -127,7 +127,6 @@ module.exports = {
             }
             if(location_id==1){
                 data = {...data,destination:2}
-                console.log('a')
             } else if (location_id==2){
                 data = {...data,destination:3}
                 console.log('b')
