@@ -319,6 +319,13 @@ module.exports = {
     },
 
     //========================================= HOME PAGE ========================================
+    getAllProductCount: (req, res)=> {
+        let sql = `select count(*) as countAllProd from tbl_product`
+        db.query(sql, (err, countRes)=> {
+            if (err) return res.status(500).send(err)
+            return res.status(200).send(countRes)
+        })
+    },
 
     getProductbySearch: (req, res)=>{
         const {key} = req.params
@@ -357,7 +364,7 @@ module.exports = {
         where !(pd.status in ('add', 'modify') and pd.notes is not null)
         group by pd.product_id
         having totalprod > 0
-        limit ${(page-1)*5},8;`
+        limit ${(page-1)*6},6;`
         // let sql =`select * from tbl_product limit ${(page-1)*5},8`
         db.query(sql,(err,result)=>{
             if(err)return res.status(500).send(err)
@@ -366,13 +373,14 @@ module.exports = {
     },
 
     getProductbyCategory:(req,res)=>{
-        const {category} = req.params
+        const {categId, page} = req.query
         let sql =`SELECT p.product_id, p.image, p.price, p.product_name, c.category_id, c.category_name FROM ref_product_category pc
         inner join tbl_product p
         on p.product_id = pc.product_id
         inner join tbl_category c
         on c.category_id = pc.category_id
-        where c.category_id = ${db.escape(category)}`
+        where c.category_id = ${db.escape(categId)}
+        limit ${(page-1)*6},6;`
         db.query(sql,(err,result)=>{
             if(err)return res.status(500).send(err)
             return res.status(200).send(result)
