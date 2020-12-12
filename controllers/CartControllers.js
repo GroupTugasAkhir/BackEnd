@@ -117,7 +117,8 @@ module.exports = {
         and t.status = "onCart"`
         db.query(sql,[user_id],(err,result)=>{
             if(err)return res.status(500).send(err)
-            return res.send(result)
+
+            return res.status(200).send(result)
         })
     },
 
