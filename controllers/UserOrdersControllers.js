@@ -13,7 +13,8 @@ module.exports = {
         join tbl_transaction t on td.transaction_id=t.transaction_id
         left join tbl_log_transaction lt on lt.transaction_id=t.transaction_id
         and lt.product_id=td.product_id and lt.status = 'completed'
-        where t.user_id=${db.escape(id)} and t.status != 'onCart' and t.status != 'completed';`
+        where t.user_id=${db.escape(id)} and t.status != 'onCart' and t.status != 'completed'
+        order by t.date_in desc;`
 
         db.query(sql, (err, dataOrdersUser)=>{
             if (err) return res.status(500).send({message:err.message})
@@ -123,7 +124,8 @@ module.exports = {
                                     join tbl_transaction t on td.transaction_id=t.transaction_id
                                     left join tbl_log_transaction lt on lt.transaction_id=t.transaction_id
                                     and lt.product_id=td.product_id and lt.status = 'completed'
-                                    where t.user_id=${db.escape(id)} and t.status != 'onCart' and t.status != 'completed';`
+                                    where t.user_id=${db.escape(id)} and t.status != 'onCart' and t.status != 'completed'
+                                    order by t.date_in desc;`
                                     db.query(sql, (err, dataOrdersUser)=>{
                                         if (err) return res.status(500).send({message:err.message})
                                         
@@ -151,7 +153,8 @@ module.exports = {
                             join tbl_transaction t on td.transaction_id=t.transaction_id
                             left join tbl_log_transaction lt on lt.transaction_id=t.transaction_id
                             and lt.product_id=td.product_id and lt.status = 'completed'
-                            where t.user_id=${db.escape(id)} and t.status != 'onCart' and t.status != 'completed';`
+                            where t.user_id=${db.escape(id)} and t.status != 'onCart' and t.status != 'completed'
+                            order by t.date_in desc;`
                             db.query(sql, (err, dataOrdersUser)=>{
                                 if (err) return res.status(500).send({message:err.message})
                                 
@@ -187,7 +190,7 @@ module.exports = {
         join tbl_transaction t on td.transaction_id=t.transaction_id
         left join tbl_log_transaction lt on lt.transaction_id=t.transaction_id
         and lt.product_id=td.product_id and lt.status = 'completed'
-        where t.user_id=${db.escape(id)} and lt.status = 'completed';`
+        where t.user_id=${db.escape(id)} and lt.status = 'completed' order by t.date_in desc;`
 
         db.query(sql, (err, dataOrdersUser)=>{
             if (err) return res.status(500).send({message:err.message})
@@ -204,7 +207,8 @@ module.exports = {
         let sql = `select c.*, p.product_name, p.image, u.username, u.photo
         from tbl_comment c join tbl_user u on c.user_id=u.user_id
         join tbl_product p on c.product_id=p.product_id
-        where c.user_id=${db.escape(idUs)} and c.product_id=${db.escape(idPr)}`
+        where c.user_id=${db.escape(idUs)} and c.product_id=${db.escape(idPr)}
+        order by date_in desc`
 
         db.query(sql, (err, dataRating)=>{
             if (err) return res.status(500).send({message:err.message})
@@ -213,7 +217,7 @@ module.exports = {
             }
             
             // console.log(dataRating)
-            return res.status(200).send(dataRating[0])
+            return res.status(200).send(dataRating)
         })
     },
 }
