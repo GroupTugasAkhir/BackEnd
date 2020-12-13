@@ -19,7 +19,8 @@ module.exports = {
                                     from : 0,
                                     destination : value1.location_id,
                                     status : 'request',
-                                    notes : `from user ${value1.user_id}`
+                                    notes : `from user ${value1.user_id}`,
+                                    req_another : '0'
                                 }
                                 sql=`insert into tbl_notification set ?`
                                 db.query(sql,data,(err)=>{
@@ -57,7 +58,7 @@ module.exports = {
         const {location_id} = req.body
         if(location_id){
             let sql = `select n.notification_id, n.transaction_detail_id, n.quantity as req_qty, n.notes,
-            n.from, n.destination, n.status, p.product_id, p.product_name, p.image, l.location_name, l.location_id
+            n.from, n.destination, n.status, p.product_id, p.product_name, p.image, l.location_name, l.location_id, n.req_another
             from tbl_notification n
             inner join tbl_transaction_detail td
             on n.transaction_detail_id = td.transaction_detail_id
@@ -65,7 +66,8 @@ module.exports = {
             on p.product_id = td.product_id
             inner join tbl_location l
             on l.location_id = n.from
-            where status = 'request' and destination = ? and n.from != '0'`
+            where status = 'request' and destination = ? and n.from != '0'
+            and n.req_another in (1,2)`
             db.query(sql,[location_id],(err,result)=>{
                 if(err) return res.status(500).send({message:err.message})
                 res.send(result)
@@ -84,6 +86,25 @@ module.exports = {
                 res.send(result)
             })
         }
+    },
+
+    getWaitingConfirmItem:(req,res)=>{
+        const {location_id} = req.body
+        sql = `select n.notification_id, n.transaction_detail_id, n.quantity as req_qty, n.notes,n.req_another,
+        n.from, n.destination, n.status, p.product_id, p.product_name, p.image, l.location_name, l.location_id
+        from tbl_notification n
+        inner join tbl_transaction_detail td
+        on n.transaction_detail_id = td.transaction_detail_id
+        inner join tbl_product p
+        on p.product_id = td.product_id
+        inner join tbl_location l
+        on l.location_id = n.from
+        where status = 'request' and destination = ? and n.from != '0'
+        and n.req_another = '0'`
+        db.query(sql,[location_id],(err,result)=>{
+            if(err) return res.status(500).send({message:err.message})
+            res.send(result)
+        })
     },
 
     requestNotificationDetail:(req,res)=>{
@@ -123,7 +144,8 @@ module.exports = {
                 quantity : temp,
                 from : location_id,
                 status : 'request',
-                notes : `notif_id ${notification_id}`
+                notes : `notif_id ${notification_id}`,
+                req_another : 1
             }
             if(location_id==1){
                 data = {...data,destination:2}
@@ -167,8 +189,12 @@ module.exports = {
                         sql = `insert into tbl_log_transaction set ?`
                         db.query(sql,another_data,(err)=>{
                             if(err) return res.status(500).send({message:err.message})
-                            sql = `update tbl_notification set notes = 'waitingConfirmation' where notification_id = ?`
-                            db.query(sql,notification_id,(err)=>{
+                            let param = {
+                                notes : 'waitingConfirmation',
+                                req_another : '0'
+                            }
+                            sql = `update tbl_notification set ? where notification_id = ?`
+                            db.query(sql,[param,notification_id],(err)=>{
                                 if(err) return res.status(500).send({message:err.message})
                                 return res.send('request have been made')
                             })
@@ -180,50 +206,81 @@ module.exports = {
     },
 
     confirmingRequest:(req,res)=>{
-        const {product_id, mod_qty,notification_id,location_id,destination_id,notes} = req.body
-        let raw = notes.split(' ')
-        let notif_mod = raw[1]
-        sql=`insert into tbl_product_detail set ?`
-        let obj={
-            product_id:product_id,
-            location_id: location_id,
-            date_in:Date.now(),
-            status:'add',
-            notes:`from ${destination_id}`,
-            quantity: mod_qty
-        }
-        db.query(sql,obj,(err)=>{
-            if(err) return res.status(500).send({message:err.message})
-            let new_obj = {
-                product_id:product_id,
-                location_id: destination_id,
-                date_in:Date.now(),
-                status:'modify',
-                notes:`sent to ${location_id}`,
-                quantity: mod_qty * -1
-            }
+        const {product_id, mod_qty,notification_id,location_id,destination_id,notes,transaction_detail_id} = req.body
+        if(notes === 'from user'){
             sql=`insert into tbl_product_detail set ?`
-            db.query(sql,new_obj,(err)=>{
+            let obj={
+                product_id:product_id,
+                location_id: location_id,
+                date_in:Date.now(),
+                status:'add',
+                notes:`from ${destination_id}`,
+                quantity: mod_qty
+            }
+            db.query(sql,obj,(err)=>{
                 if(err) return res.status(500).send({message:err.message})
-                sql = `update tbl_notification set status = 'confirm' where notification_id = ?`
-                db.query(sql,notification_id,(err)=>{
+                console.log('masuk sini')
+                let new_obj = {
+                    product_id:product_id,
+                    location_id: destination_id,
+                    date_in:Date.now(),
+                    status:'modify',
+                    notes:`sent to ${location_id}`,
+                    quantity: mod_qty * -1
+                }
+                sql=`insert into tbl_product_detail set ?`
+                db.query(sql,new_obj,(err)=>{
                     if(err) return res.status(500).send({message:err.message})
-                    sql = `update tbl_notification set notes = 'from user' where notification_id = ?`
-                    db.query(sql,notif_mod,(err)=>{
+                    let param = {
+                        status : 'confirm',
+                        req_another : '0'
+                    }
+                    sql = `update tbl_notification set ? where notification_id = ?`
+                    db.query(sql,[param,notification_id],(err)=>{
                         if(err) return res.status(500).send({message:err.message})
-                        let data = {
-                            activities : 'tbl_product_detail',
-                            status : 'modify',
-                            date_in : Date.now(),
-                            product_id,
-                            notes : `sent item to ${destination_id}`
-                        }
-                        sql = `insert into tbl_log_transaction set ?`
-                        db.query(sql,data,(err)=>{
+                        sql = `update tbl_notification set notes = '' where destination = ? and transaction_detail_id = ?`
+                        db.query(sql,[location_id,transaction_detail_id],(err)=>{
                             if(err) return res.status(500).send({message:err.message})
-                            data = {
-                                activities : 'tbl_notification',
-                                status : 'confirm',
+                            return res.send('confirmed euy')
+                        })
+                    })
+                })
+            })
+        }else{
+            let raw = notes.split(' ')
+            let notif_mod = raw[1]
+            sql=`insert into tbl_product_detail set ?`
+            let obj={
+                product_id:product_id,
+                location_id: location_id,
+                date_in:Date.now(),
+                status:'add',
+                notes:`from ${destination_id}`,
+                quantity: mod_qty
+            }
+            db.query(sql,obj,(err)=>{
+                if(err) return res.status(500).send({message:err.message})
+                console.log('masuk sini')
+                let new_obj = {
+                    product_id:product_id,
+                    location_id: destination_id,
+                    date_in:Date.now(),
+                    status:'modify',
+                    notes:`sent to ${location_id}`,
+                    quantity: mod_qty * -1
+                }
+                sql=`insert into tbl_product_detail set ?`
+                db.query(sql,new_obj,(err)=>{
+                    if(err) return res.status(500).send({message:err.message})
+                    sql = `update tbl_notification set status = 'confirm' where notification_id = ?`
+                    db.query(sql,notification_id,(err)=>{
+                        if(err) return res.status(500).send({message:err.message})
+                        sql = `update tbl_notification set notes = 'from user' where notification_id = ?`
+                        db.query(sql,notif_mod,(err)=>{
+                            if(err) return res.status(500).send({message:err.message})
+                            let data = {
+                                activities : 'tbl_product_detail',
+                                status : 'modify',
                                 date_in : Date.now(),
                                 product_id,
                                 notes : `sent item to ${destination_id}`
@@ -231,13 +288,45 @@ module.exports = {
                             sql = `insert into tbl_log_transaction set ?`
                             db.query(sql,data,(err)=>{
                                 if(err) return res.status(500).send({message:err.message})
-                                return res.send('confirmed already')
+                                data = {
+                                    activities : 'tbl_notification',
+                                    status : 'confirm',
+                                    date_in : Date.now(),
+                                    product_id,
+                                    notes : `sent item to ${destination_id}`
+                                }
+                                sql = `insert into tbl_log_transaction set ?`
+                                db.query(sql,data,(err)=>{
+                                    if(err) return res.status(500).send({message:err.message})
+                                    sql = `select * from tbl_notification where notification_id = ?`
+                                    db.query(sql,notification_id,(err,result)=>{
+                                        if(err) return res.status(500).send({message:err.message})
+                                        if(result[0].req_another == 0){
+                                            sql = `update tbl_notification set req_another = '0' where notification_id = ?`
+                                            db.query(sql,notif_mod,(err)=>{
+                                                console.log('zzzz')
+                                                if(err) return res.status(500).send({message:err.message})
+                                                return res.send(`confirmed already ${notif_mod}`)
+                                            })
+                                        }
+                                        if(result[0].req_another > 0){
+                                            sql = `update tbl_notification set req_another = '1' where notification_id = ?`
+                                            db.query(sql,notif_mod,(err)=>{
+                                                console.log('zzzz')
+                                                if(err) return res.status(500).send({message:err.message})
+                                                return res.send(`confirmed already ${notif_mod}`)
+                                            })
+                                        }else{
+                                            return res.send(`confirmed already ${notif_mod}`)
+                                        }
+                                    })
+                                })
                             })
                         })
                     })
                 })
             })
-        })
+        }
     },
 
     getTransaction:(req,res)=>{
@@ -329,7 +418,7 @@ module.exports = {
         }
         db.query(sql,obj,(err)=>{
             if(err) return res.status(500).send({message:err.message})
-            sql = `update tbl_notification set status = 'confirm' where transaction_detail_id = ? and notes like '%user%'`
+            sql = `update tbl_notification set status = 'confirm' where transaction_detail_id = ? and req_another = '0'`
             db.query(sql,trx_detail_id,(err)=>{
                 if(err) return res.status(500).send({message:err.message})
                 let data = {
