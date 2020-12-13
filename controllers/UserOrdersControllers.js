@@ -220,4 +220,102 @@ module.exports = {
             return res.status(200).send(dataRating)
         })
     },
+
+    //========================================= NOTIFICATION ========================================
+
+    getAllNotif: (req, res) => {
+        const {id} = req.params // user_id
+        let sql = `select * from (select td.transaction_detail_id, td.transaction_id,
+        group_concat(td.quantity) as quantity, group_concat(p.price) as price
+        , group_concat(p.product_name) as product_name
+        , group_concat(p.image) as image, t.status, t.user_id, 
+        t.date_in as trans_code,t.notes as notes_read
+        from tbl_transaction_detail td join tbl_product p on td.product_id=p.product_id
+        join tbl_transaction t on td.transaction_id=t.transaction_id
+        group by td.transaction_id) as datas
+        left join (select distinct t.transaction_id as trans_id2, lt.log_id, 
+        group_concat(lt.status) as status_log, group_concat(lt.notes) as notes_log,
+        group_concat(lt.date_in) as date_in, lt.transaction_id as trans_id3
+        from tbl_transaction t join 
+        (select * from tbl_log_transaction where status not in('request', 'confirm')) as lt
+        on t.transaction_id=lt.transaction_id group by t.transaction_id) as logg
+        on datas.transaction_id=logg.trans_id2 where datas.user_id=${db.escape(id)}`
+        // console.log(id)
+
+        db.query(sql, (err, dataAllNotif)=>{
+            if (err) return res.status(500).send({message:err.message})
+            // console.log(dataAllNotif)
+            
+            return res.status(200).send(dataAllNotif)
+        })
+    },
+
+    getProgress: (req, res) => {
+        const {id} = req.params // transaction_id
+        let sql = `select distinct t.transaction_id, t.date_in as trans_code,t.status, t.user_id
+        , lt.log_id, lt.status as status_log, lt.date_in, lt.notes, lt.transaction_id as trans_id
+        from tbl_transaction t left join 
+        (select * from tbl_log_transaction where status not in('request', 'confirm')) as lt
+        on t.transaction_id=lt.transaction_id where t.transaction_id=${db.escape(id)}
+        order by lt.date_in desc;`
+
+        db.query(sql, (err, dataProgress)=>{
+            if (err) return res.status(500).send({message:err.message})
+            // console.log(dataAllNotif)
+            
+            return res.status(200).send(dataProgress)
+        })
+    },
+
+    getNotif: (req, res) => {
+        const {id} = req.params // user_id
+        let sql = `select distinct t.transaction_id, t.date_in as trans_code,t.status, t.user_id, t.notes as notes_read
+        , lt.log_id, max(lt.date_in) as date_newest, lt.notes, lt.transaction_id as trans_id
+        from (select * from tbl_transaction where notes != 'read' and status!='onCart') as t left join 
+        (select * from tbl_log_transaction where status not in('request', 'confirm')) as lt
+        on t.transaction_id=lt.transaction_id where t.user_id=?
+        group by t.transaction_id order by lt.date_in desc limit 5;`
+
+        db.query(sql, [id], (err, dataNotif)=>{
+            if (err) return res.status(500).send({message:err.message})
+            
+            return res.status(200).send(dataNotif)
+        })
+    },
+
+    updateNotif: (req, res) => {
+        const {id} = req.params // transaction_id
+        let sql = `select * from tbl_transaction where transaction_id = ? `
+
+        db.query(sql, [id], (err, result)=>{
+            if (err) return res.status(500).send({message:err.message})
+            if(!result) return res.status(500).send({message:'transaksi tidak ada'})
+
+            let newNotes= {
+                notes: 'read'
+            }
+            console.log(id)
+            console.log('dfdfd')
+            sql = `update tbl_transaction set ? where transaction_id = ${id}`
+            db.query(sql, newNotes, (err, resultUpdate)=>{
+                if(err){
+                    console.log(err)
+                    return res.status(500).send(err)
+                }
+                console.log(resultUpdate)
+                sql = `select distinct t.transaction_id, t.date_in as trans_code,t.status, t.user_id, t.notes as notes_read
+                , lt.log_id, max(lt.date_in) as date_newest, lt.notes, lt.transaction_id as trans_id
+                from (select * from tbl_transaction where notes != 'read' and status!='onCart') as t left join 
+                (select * from tbl_log_transaction where status not in('request', 'confirm')) as lt
+                on t.transaction_id=lt.transaction_id where t.user_id=?
+                group by t.transaction_id order by lt.date_in desc limit 5;`
+        
+                db.query(sql, [result[0].user_id], (err, dataNotif)=>{
+                    if (err) return res.status(500).send({message:err.message})
+                    
+                    return res.status(200).send(dataNotif)
+                })
+            })
+        })
+    }
 }
