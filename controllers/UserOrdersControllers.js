@@ -7,14 +7,25 @@ const fs = require('fs')
 module.exports = {
     getOrderDetails: (req, res) => {
         const {id} = req.params // user_id
-        let sql = `select distinct td.*, p.product_name, p.image, t.status, t.user_id, t.date_in,
-        lt.product_id as prod_id, lt.status as status_log
+        let sql = `select distinct td.*, p.product_name, p.image, t.status, t.user_id, t.date_in
+        , lt.status as status_log, lt.date_log
         from tbl_transaction_detail td join tbl_product p on td.product_id=p.product_id
         join tbl_transaction t on td.transaction_id=t.transaction_id
-        left join tbl_log_transaction lt on lt.transaction_id=t.transaction_id
-        and lt.product_id=td.product_id and lt.status = 'completed'
+        left join (select *, max(date_in) as date_log 
+        from tbl_log_transaction where status not in('request', 'confirm')
+        and activities = 'tbl_transaction' group by transaction_id) as lt 
+        on lt.transaction_id=t.transaction_id
         where t.user_id=${db.escape(id)} and t.status != 'onCart' and t.status != 'completed'
-        order by t.date_in desc;`
+        order by lt.date_log desc;`
+        
+        // `select distinct td.*, p.product_name, p.image, t.status, t.user_id, t.date_in,
+        // lt.product_id as prod_id, lt.status as status_log
+        // from tbl_transaction_detail td join tbl_product p on td.product_id=p.product_id
+        // join tbl_transaction t on td.transaction_id=t.transaction_id
+        // left join tbl_log_transaction lt on lt.transaction_id=t.transaction_id
+        // and lt.product_id=td.product_id and lt.status = 'completed'
+        // where t.user_id=${db.escape(id)} and t.status != 'onCart' and t.status != 'completed'
+        // order by t.date_in desc;`
 
         db.query(sql, (err, dataOrdersUser)=>{
             if (err) return res.status(500).send({message:err.message})
@@ -45,7 +56,7 @@ module.exports = {
             product_id: data.product_id,
             notes: data.location_id,
             user_id: data.user_id,
-            transaction_id: data.transaction_id
+            transaction_id: data.transaction_id,
         }
         db.beginTransaction((err)=>{
             if (err) {
@@ -66,7 +77,8 @@ module.exports = {
                     date_in : data.date_in,
                     product_id: data.product_id,
                     comment_content: data.comment,
-                    rating: data.rating
+                    rating: data.rating,
+                    transaction_id: data.transaction_id
                 }
                 let sql = `insert into tbl_comment set ?`
                 db.query(sql, insertComment, (err)=>{
@@ -103,7 +115,7 @@ module.exports = {
                         if(counter == dataTrans.length){
                             sql = `Update tbl_transaction set ? where transaction_id = ${db.escape(data.transaction_id)}`
                             
-                            db.query(sql, {status: 'completed'}, (err)=>{
+                            db.query(sql, {status: 'completed', notes: 'noread'}, (err)=>{
                                 if (err) {
                                     return db.rollback(()=>{
                                         console.log(err)
@@ -124,7 +136,7 @@ module.exports = {
                                     join tbl_transaction t on td.transaction_id=t.transaction_id
                                     left join tbl_log_transaction lt on lt.transaction_id=t.transaction_id
                                     and lt.product_id=td.product_id and lt.status = 'completed'
-                                    where t.user_id=${db.escape(id)} and t.status != 'onCart' and t.status != 'completed'
+                                    where t.user_id=${db.escape(data.user_id)} and t.status != 'onCart' and t.status != 'completed'
                                     order by t.date_in desc;`
                                     db.query(sql, (err, dataOrdersUser)=>{
                                         if (err) return res.status(500).send({message:err.message})
@@ -147,27 +159,36 @@ module.exports = {
                                 
                             })
                         }else{
-                            let sql = `select distinct td.*, p.product_name, p.image, t.status, t.user_id,  t.date_in,
-                            lt.product_id as prod_id, lt.status as status_log
-                            from tbl_transaction_detail td join tbl_product p on td.product_id=p.product_id
-                            join tbl_transaction t on td.transaction_id=t.transaction_id
-                            left join tbl_log_transaction lt on lt.transaction_id=t.transaction_id
-                            and lt.product_id=td.product_id and lt.status = 'completed'
-                            where t.user_id=${db.escape(id)} and t.status != 'onCart' and t.status != 'completed'
-                            order by t.date_in desc;`
-                            db.query(sql, (err, dataOrdersUser)=>{
-                                if (err) return res.status(500).send({message:err.message})
-                                
-                                let sql = `select td.*, p.product_name, p.image, t.status, t.user_id, t.location_id
+                            db.commit((err)=>{
+                                if (err) {
+                                    return db.rollback(()=>{
+                                        console.log(err)
+                                        res.status(500).send({message:err.message})
+                                    })
+                                }
+
+                                let sql = `select distinct td.*, p.product_name, p.image, t.status, t.user_id,  t.date_in,
+                                lt.product_id as prod_id, lt.status as status_log
                                 from tbl_transaction_detail td join tbl_product p on td.product_id=p.product_id
                                 join tbl_transaction t on td.transaction_id=t.transaction_id
-                                where td.transaction_detail_id=${db.escape(data.transaction_detail_id)};`
-                                db.query(sql, (err, dataCurrentOrder)=>{
+                                left join tbl_log_transaction lt on lt.transaction_id=t.transaction_id
+                                and lt.product_id=td.product_id and lt.status = 'completed'
+                                where t.user_id=${db.escape(data.user_id)} and t.status != 'onCart' and t.status != 'completed'
+                                order by t.date_in desc;`
+                                db.query(sql, (err, dataOrdersUser)=>{
                                     if (err) return res.status(500).send({message:err.message})
                                     
-                                    return res.status(200).send({
-                                        dataOrdersUser,
-                                        dataCurrentOrder: dataCurrentOrder[0]
+                                    let sql = `select td.*, p.product_name, p.image, t.status, t.user_id, t.location_id
+                                    from tbl_transaction_detail td join tbl_product p on td.product_id=p.product_id
+                                    join tbl_transaction t on td.transaction_id=t.transaction_id
+                                    where td.transaction_detail_id=${db.escape(data.transaction_detail_id)};`
+                                    db.query(sql, (err, dataCurrentOrder)=>{
+                                        if (err) return res.status(500).send({message:err.message})
+                                        
+                                        return res.status(200).send({
+                                            dataOrdersUser,
+                                            dataCurrentOrder: dataCurrentOrder[0]
+                                        })
                                     })
                                 })
                             })
@@ -184,13 +205,21 @@ module.exports = {
 
     getCompleted: (req, res) => {
         const {id} = req.params // user_id
-        let sql = `select distinct td.*, p.product_name, p.image, t.status, t.user_id, t.date_in,
-        lt.product_id as prod_id, lt.status as status_log
+        let sql = `select distinct td.*, p.product_name, p.image, t.status, t.user_id, t.date_in
+        , lt.status as status_log, lt.date_log
         from tbl_transaction_detail td join tbl_product p on td.product_id=p.product_id
         join tbl_transaction t on td.transaction_id=t.transaction_id
-        left join tbl_log_transaction lt on lt.transaction_id=t.transaction_id
-        and lt.product_id=td.product_id and lt.status = 'completed'
-        where t.user_id=${db.escape(id)} and lt.status = 'completed' order by t.date_in desc;`
+        left join (select *, max(date_in) as date_log 
+        from tbl_log_transaction where status not in('request', 'confirm')
+        and activities = 'tbl_transaction' group by transaction_id) as lt 
+        on lt.transaction_id=t.transaction_id
+        where t.user_id=${db.escape(id)} and t.status = 'completed'
+        order by lt.date_log desc;`
+
+        // let sql = `select distinct td.*, p.product_name, p.image, t.status, t.user_id, t.date_in
+        // from tbl_transaction_detail td join tbl_product p on td.product_id=p.product_id
+        // join tbl_transaction t on td.transaction_id=t.transaction_id
+        // where t.user_id=${db.escape(id)} and t.status = 'completed' order by t.date_in desc;`
 
         db.query(sql, (err, dataOrdersUser)=>{
             if (err) return res.status(500).send({message:err.message})
@@ -235,11 +264,12 @@ module.exports = {
         group by td.transaction_id) as datas
         left join (select distinct t.transaction_id as trans_id2, lt.log_id, 
         group_concat(lt.status) as status_log, group_concat(lt.notes) as notes_log,
-        group_concat(lt.date_in) as date_in, lt.transaction_id as trans_id3
+        max(lt.date_in) as date_in, lt.transaction_id as trans_id3
         from tbl_transaction t join 
         (select * from tbl_log_transaction where status not in('request', 'confirm')) as lt
         on t.transaction_id=lt.transaction_id group by t.transaction_id) as logg
-        on datas.transaction_id=logg.trans_id2 where datas.user_id=${db.escape(id)}`
+        on datas.transaction_id=logg.trans_id2 where datas.user_id=${db.escape(id)} order by date_in desc;`
+
         // console.log(id)
 
         db.query(sql, (err, dataAllNotif)=>{
