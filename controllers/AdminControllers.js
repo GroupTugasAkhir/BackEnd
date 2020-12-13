@@ -327,6 +327,20 @@ module.exports = {
         })
     },
 
+    getCategProductCount: (req, res)=> {
+        const {categID} = req.query
+        let sql = `SELECT count(*) as countbyCateg FROM ref_product_category pc
+        inner join tbl_product p
+        on p.product_id = pc.product_id
+        inner join tbl_category c
+        on c.category_id = pc.category_id
+        where c.category_id = ${categID};`
+        db.query(sql, (err, countRes)=> {
+            if (err) return res.status(500).send(err)
+            return res.status(200).send(countRes)
+        })
+    },
+
     getProductbySearch: (req, res)=>{
         const {key} = req.params
         let sql = `SELECT p.product_id, p.image, p.price, p.product_name, c.category_id, c.category_name FROM ref_product_category pc
