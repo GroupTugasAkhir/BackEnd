@@ -1,5 +1,67 @@
 const { db } = require('./../connection')
 
+const insertLogTransPromise = (idTrans, idUser) => {
+    return new Promise((resolve, reject)=> {
+        let temp = {
+            status : "productOTW",
+            notes: 'noread'
+        }
+        sql = `update tbl_transaction set ? where status = 'paymentCompleted' and transaction_id = ?`
+        db.query(sql,[temp,idTrans],(err)=>{
+            if(err) reject(err)
+            // sql = `insert into tbl_log_transaction set ?`
+            sql =`insert into tbl_log_transaction (activities, status, date_in,user_id, transaction_id, notes) values ?`
+            let another_data = [
+                [
+                    'tbl_transaction',
+                    'request',
+                    Date.now(),
+                    null,
+                    idTrans,
+                    'item request from user to branch'
+                ],
+                [
+                    'tbl_transaction',
+                    temp.status,
+                    Date.now(),
+                    idUser,
+                    idTrans,
+                    null
+                ],
+            ]
+            db.query(sql,[another_data],(err)=>{
+                if(err) reject(err)
+
+                resolve('your item is on the way')
+            })
+        })
+    })
+}
+
+const queryPromises = (sql,val_id) => {
+    return new Promise((resolve, reject)=> {
+        db.query(sql,[val_id], (err, results)=> {
+            if (err) {
+                reject(err)
+            } else {
+                resolve(results)
+            }
+        })
+    })
+}
+
+const insertManyPromise = (sql,val_id) => {
+    return new Promise((resolve, reject)=> {
+        db.query(sql,[val_id], (err, results)=> {
+            if (err) {
+                reject(err)
+            } else {
+                resolve(results)
+            }
+        })
+    })
+}
+
 module.exports = {
     
     checkCompletePayment: (req, res)=> {
@@ -7,50 +69,113 @@ module.exports = {
         db.query(sql, (err,result1)=> {
             if(err) return res.status(500).send({message:err.message})
             if(result1.length){
-                result1.map((value1)=>{
-                    sql = `select * from tbl_transaction_detail where transaction_id = ?`
-                    db.query(sql,[value1.transaction_id],(err,result2)=>{
-                        if(err) return res.status(500).send({message:err.message})
-                        if(result2.length){
-                            result2.map((value2)=>{
-                                var data = {
-                                    transaction_detail_id : value2.transaction_detail_id,
-                                    quantity : value2.quantity,
-                                    from : 0,
-                                    destination : value1.location_id,
-                                    status : 'request',
-                                    notes : `from user ${value1.user_id}`,
-                                    req_another : '0'
-                                }
-                                sql=`insert into tbl_notification set ?`
-                                db.query(sql,data,(err)=>{
-                                    if(err) return res.status(500).send({message:err.message})
-                                    // return res.send('notification request created')
-                                })
-                            })
-                        }
-                    })
-                    let temp = {
-                        status : "productOTW"
-                    }
-                    sql = `update tbl_transaction set ? where status = 'paymentCompleted' and transaction_id = ?`
-                    db.query(sql,[temp,value1.transaction_id],(err)=>{
-                        if(err) return res.status(500).send({message:err.message})
-                        sql = `insert into tbl_log_transaction set ?`
-                        let another_data = {
-                            activities : 'tbl_transaction',
-                            status : 'request',
-                            date_in : Date.now(),
-                            transaction_id : value1.transaction_id,
-                            notes : 'item request from user to branch'
-                        }
-                        db.query(sql,another_data,(err)=>{
-                            if(err) return res.status(500).send({message:err.message})
-                        })
-                    })
+                var arr = []
+                result1.forEach((value1)=>{
+                    arr.push(queryPromises(`SELECT td.*, t.user_id, t.location_id 
+                    FROM tbl_transaction t join tbl_transaction_detail td on t.transaction_id=td.transaction_id 
+                    where td.transaction_id = ?`,
+                        value1.transaction_id
+                    ))
+
                 })
+                Promise.all(arr)
+                .then((resResult1)=>{
+                    var arr2=[]
+                    sql =`insert into tbl_notification (transaction_detail_id, quantity, froms, destination,status, notes, req_another ) values ?`
+                    
+                    resResult1.forEach((value2)=>{
+                        var insertdata = value2.map((val,index)=>{
+                            console.log(val)
+                            return [
+                                val.transaction_detail_id,
+                                val.quantity,
+                                0,
+                                val.location_id,
+                                'request',
+                                `from user ${val.user_id}`,
+                                '0'
+                            ]
+                        })
+                        arr2.push(insertManyPromise(sql, insertdata))
+                    })
+                    console.log(resResult1)
+                    Promise.all(arr2)
+                    .then(()=>{
+                        var arr3 = resResult1.map((val)=>{
+                            return insertLogTransPromise(val[0].transaction_id, val[0].user_id)
+                        })
+                        Promise.all(arr3)
+                        .then((hasil)=>{
+                            // res.send(hasil) nanti jadinya hasil array
+                            res.send('product on the way') // pake ini aja
+                        }).catch((err)=>{
+                            console.log(err)
+                        })
+                    }).catch((err)=>{
+                        console.log(err)
+                    })
+                }).catch((err)=>{
+                    console.log(err)
+                })
+
+
+
+                // sql="insert into ref_product_category (product_id, category_id) values ?"
+
+                // result1.forEach((value1)=>{
+                //     sql = `select * from tbl_transaction_detail where transaction_id = ?`
+                //     db.query(sql,[value1.transaction_id],(err,result2)=>{
+                //         if(err) return res.status(500).send({message:err.message})
+                //         if(result2.length){
+                //             result2.forEach((value2)=>{
+                //                 var data = {
+                //                     transaction_detail_id : value2.transaction_detail_id,
+                //                     quantity : value2.quantity,
+                //                     from : 0,
+                //                     destination : value1.location_id,
+                //                     status : 'request',
+                //                     notes : `from user ${value1.user_id}`,
+                //                     req_another : '0'
+                //                 }
+                //                 sql =`insert into tbl_notification set ?`
+                //                 db.query(sql,data,(err)=>{
+                //                     if(err) return res.status(500).send({message:err.message})
+                //                     // return res.send('notification request created')
+                //                 })
+                //             })
+                //         }
+                //     })
+                //     let temp = {
+                //         status : "productOTW",
+                //         notes: 'noread'
+                //     }
+                //     sql = `update tbl_transaction set ? where status = 'paymentCompleted' and transaction_id = ?`
+                //     db.query(sql,[temp,value1.transaction_id],(err)=>{
+                //         if(err) return res.status(500).send({message:err.message})
+                //         sql = `insert into tbl_log_transaction set ?`
+                //         let another_data = [
+                //             {
+                //                 activities : 'tbl_transaction',
+                //                 status : 'request',
+                //                 date_in : Date.now(),
+                //                 transaction_id : value1.transaction_id,
+                //                 notes : 'item request from user to branch'
+                //             },
+                //             {
+                //                 activities: 'tbl_transaction',
+                //                 status: temp.status,
+                //                 date_in: Date.now(),
+                //                 user_id: result1.user_id,
+                //                 transaction_id: value1.transaction_id
+                //             },
+                //     ]
+                //         db.query(sql,[another_data],(err)=>{
+                //             if(err) return res.status(500).send({message:err.message})
+                //         })
+                //     })
+                // })
             }
-            return res.send('your item is on the way')
+            // return res.send('your item is on the way')
         })
     },
 
@@ -58,15 +183,15 @@ module.exports = {
         const {location_id} = req.body
         if(location_id){
             let sql = `select n.notification_id, n.transaction_detail_id, n.quantity as req_qty, n.notes,
-            n.from, n.destination, n.status, p.product_id, p.product_name, p.image, l.location_name, l.location_id, n.req_another
+            n.froms, n.destination, n.status, p.product_id, p.product_name, p.image, l.location_name, l.location_id, n.req_another
             from tbl_notification n
             inner join tbl_transaction_detail td
             on n.transaction_detail_id = td.transaction_detail_id
             inner join tbl_product p
             on p.product_id = td.product_id
             inner join tbl_location l
-            on l.location_id = n.from
-            where status = 'request' and destination = ? and n.from != '0'
+            on l.location_id = n.froms
+            where status = 'request' and destination = ? and n.froms != '0'
             and n.req_another in (1,2)`
             db.query(sql,[location_id],(err,result)=>{
                 if(err) return res.status(500).send({message:err.message})
@@ -74,7 +199,7 @@ module.exports = {
             })
         } else {
             let sql = `select n.notification_id, n.transaction_detail_id, n.quantity as req_qty,
-            n.from, n.destination, n.status, p.product_id, p.product_name, p.image
+            n.froms, n.destination, n.status, p.product_id, p.product_name, p.image
             from tbl_notification n
             inner join tbl_transaction_detail td
             on n.transaction_detail_id = td.transaction_detail_id
@@ -91,15 +216,15 @@ module.exports = {
     getWaitingConfirmItem:(req,res)=>{
         const {location_id} = req.body
         sql = `select n.notification_id, n.transaction_detail_id, n.quantity as req_qty, n.notes,n.req_another,
-        n.from, n.destination, n.status, p.product_id, p.product_name, p.image, l.location_name, l.location_id
+        n.froms, n.destination, n.status, p.product_id, p.product_name, p.image, l.location_name, l.location_id
         from tbl_notification n
         inner join tbl_transaction_detail td
         on n.transaction_detail_id = td.transaction_detail_id
         inner join tbl_product p
         on p.product_id = td.product_id
         inner join tbl_location l
-        on l.location_id = n.from
-        where status = 'request' and destination = ? and n.from != '0'
+        on l.location_id = n.froms
+        where status = 'request' and destination = ? and n.froms != '0'
         and n.req_another = '0'`
         db.query(sql,[location_id],(err,result)=>{
             if(err) return res.status(500).send({message:err.message})
@@ -142,7 +267,7 @@ module.exports = {
             var data = {
                 transaction_detail_id : transaction_detail_id,
                 quantity : temp,
-                from : location_id,
+                froms : location_id,
                 status : 'request',
                 notes : `notif_id ${notification_id}`,
                 req_another : 1
@@ -255,7 +380,7 @@ module.exports = {
             sql = `select * from tbl_notification n where n.notification_id = ?`
             db.query(sql,notif_mod,(err,result10)=>{
                 if(err) return res.status(500).send({message:err.message})
-                if(result10[0].from == 0){
+                if(result10[0].froms == 0){
                     sql=`insert into tbl_product_detail set ?`
                     let obj={
                         product_id:product_id,
@@ -392,7 +517,7 @@ module.exports = {
 
     getTransactionDetail:(req,res)=>{
         const {location_id, transaction_id} = req.body
-        let sql = `select n.notification_id, n.from, n.destination, n.quantity as req_qty, n.status, n.notes,
+        let sql = `select n.notification_id, n.froms, n.destination, n.quantity as req_qty, n.status, n.notes,
         td.transaction_detail_id, td.transaction_id,
         p.product_name, p.image, jt.stock, p.product_id
         from tbl_notification n
@@ -406,12 +531,12 @@ module.exports = {
         on jt.product_id = p.product_id
         where jt.location_id = ?
         and transaction_id = ?
-        and n.from = 0
+        and n.froms = 0
         and status = 'request'
         and notes != 'waitingConfirmation'`
         db.query(sql,[location_id,location_id,transaction_id],(err,result1)=>{
             if(err) return res.status(500).send({message:err.message})
-            sql = `select n.notification_id, n.from, n.destination, n.quantity as req_qty, n.status, n.notes,
+            sql = `select n.notification_id, n.froms, n.destination, n.quantity as req_qty, n.status, n.notes,
             td.transaction_detail_id, td.transaction_id,
             p.product_name, p.product_id, p.image
             from tbl_notification n
@@ -425,11 +550,11 @@ module.exports = {
             on jt.product_id = p.product_id
             where jt.location_id = ?
             and transaction_id = ?
-            and n.from = 0
+            and n.froms = 0
             and status = 'confirm'`
             db.query(sql,[location_id,location_id,transaction_id],(err,result2)=>{
                 if(err) return res.status(500).send({message:err.message})
-                sql = `select n.notification_id, n.from, n.destination, n.quantity as req_qty, n.status, n.notes,
+                sql = `select n.notification_id, n.froms, n.destination, n.quantity as req_qty, n.status, n.notes,
                 td.transaction_detail_id, td.transaction_id,
                 p.product_name, p.product_id, p.image
                 from tbl_notification n
@@ -443,7 +568,7 @@ module.exports = {
                 on jt.product_id = p.product_id
                 where jt.location_id = ?
                 and transaction_id = ?
-                and n.from = 0
+                and n.froms = 0
                 and notes = 'waitingConfirmation';`
                 db.query(sql,[location_id,location_id,transaction_id],(err,result3)=>{
                     if(err) return res.status(500).send({message:err.message})
@@ -498,7 +623,7 @@ module.exports = {
 
     onPackagingItem:(req,res)=>{
         const {location_id, transaction_id} = req.body
-        let sql = `select n.notification_id, n.from, n.destination, n.quantity as req_qty, n.status, n.notes,
+        let sql = `select n.notification_id, n.froms, n.destination, n.quantity as req_qty, n.status, n.notes,
         td.transaction_detail_id, td.transaction_id,
         p.product_name, p.product_id, p.image
         from tbl_notification n
@@ -512,7 +637,7 @@ module.exports = {
         on jt.product_id = p.product_id
         where jt.location_id = ?
         and transaction_id = ?
-        and n.from = 0
+        and n.froms = 0
         and status = 'confirm'`
         db.query(sql,[location_id,location_id,transaction_id],(err,result)=>{
             if(err) return res.status(500).send({message:err.message})
@@ -522,7 +647,7 @@ module.exports = {
 
     onWaitingItem:(req,res)=>{
         const {location_id, transaction_id} = req.body
-        let sql = `select n.notification_id, n.from, n.destination, n.quantity as req_qty, n.status, n.notes,
+        let sql = `select n.notification_id, n.froms, n.destination, n.quantity as req_qty, n.status, n.notes,
         td.transaction_detail_id, td.transaction_id,
         p.product_name, p.product_id, p.image
         from tbl_notification n
@@ -536,7 +661,7 @@ module.exports = {
         on jt.product_id = p.product_id
         where jt.location_id = ?
         and transaction_id = ?
-        and n.from = 0
+        and n.froms = 0
         and notes = 'waitingConfirmation';`
         db.query(sql,[location_id,location_id,transaction_id],(err,result)=>{
             if(err) return res.status(500).send({message:err.message})
@@ -546,10 +671,10 @@ module.exports = {
 
     checkConfirmItem:(req,res)=>{
         const {transaction_id} = req.params
-        let sql = `SELECT distinct(td.transaction_id), td.transaction_detail_id, n.status, n.from FROM tbl_notification n 
+        let sql = `SELECT distinct(td.transaction_id), td.transaction_detail_id, n.status, n.froms FROM tbl_notification n 
         inner join tbl_transaction_detail td
         on td.transaction_detail_id = n.transaction_detail_id
-        where n.status = 'confirm' and n.from = 0 and td.transaction_id = ?;`
+        where n.status = 'confirm' and n.froms = 0 and td.transaction_id = ?;`
         db.query(sql,transaction_id,(err,result)=>{
             if(err) return res.status(500).send({message:err.message})
             sql = `SELECT * FROM tbl_transaction_detail

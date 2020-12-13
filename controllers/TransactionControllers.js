@@ -40,7 +40,8 @@ module.exports = {
                     status: 'paymentCompleted',
                     payment_proof,
                     location_id: locationRes[0].location_id,
-                    method: 'cc'
+                    method: 'cc',
+                    notes: 'noread'
                 }
         
                 db.query(sql, updateTransData, (err)=> {
@@ -53,7 +54,35 @@ module.exports = {
 
                     Promise.all(newArray).then(()=> {
                         console.log('succeed');
-                        return res.send('succeed') //tidak perlu getcart lagi karena jika berhasil, di front otomatis kosong
+                        // return res.send('succeed') //tidak perlu getcart lagi karena jika berhasil, di front otomatis kosong
+                        let insertLogTrans = {
+                            activities: 'tbl_transaction',
+                            status: updateTransData.status,
+                            date_in: Date.now(),
+                            user_id: user_id,
+                            transaction_id: idtrans
+                        }
+                        sql = `insert into tbl_log_transaction set ?`
+                        db.query(sql, insertLogTrans, (err)=>{
+                            if (err) return res.status(500).send({message:err.message})
+
+                            sql = `select distinct t.transaction_id, t.date_in as trans_code,t.status, t.user_id, t.notes as notes_read
+                            , lt.log_id, max(lt.date_in) as date_newest, lt.notes, lt.transaction_id as trans_id
+                            from (select * from tbl_transaction where notes != 'read' and status!='onCart') as t left join 
+                            (select * from tbl_log_transaction where status not in('request', 'confirm')) as lt
+                            on t.transaction_id=lt.transaction_id where t.user_id=?
+                            group by t.transaction_id order by lt.date_in desc limit 5;`
+                    
+                            db.query(sql, [user_id], (err, dataNotif)=>{
+                                if (err) return res.status(500).send({message:err.message})
+                                
+                                return res.status(200).send({
+                                    cart: 'succeed',
+                                    dataNotif
+                                })
+                            })
+
+                        })
                     }).catch((err)=> {
                         return res.status(500).send({message:err.message})
                     })
@@ -94,7 +123,8 @@ module.exports = {
                         status: 'waitingAdminConfirmation',
                         payment_proof: invoicePath,
                         location_id: locationRes[0].location_id,
-                        method: 'transfer'
+                        method: 'transfer',
+                        notes: 'noread'
                     }
             
                     db.query(sql, updateTransData, (err)=> {
@@ -110,7 +140,36 @@ module.exports = {
 
                         Promise.all(newArray).then(()=> {
                             console.log('succeed');
-                            return res.send('succeed') //tidak perlu getcart lagi karena jika berhasil, di front otomatis kosong
+                            // return res.send('succeed') //tidak perlu getcart lagi karena jika berhasil, di front otomatis kosong
+
+                            let insertLogTrans = {
+                                activities: 'tbl_transaction',
+                                status: updateTransData.status,
+                                date_in: Date.now(),
+                                user_id: invoiceData.user_id,
+                                transaction_id: invoiceData.idtrans
+                            }
+                            sql = `insert into tbl_log_transaction set ?`
+                            db.query(sql, insertLogTrans, (err)=>{
+                                if (err) return res.status(500).send({message:err.message})
+    
+                                sql = `select distinct t.transaction_id, t.date_in as trans_code,t.status, t.user_id, t.notes as notes_read
+                                , lt.log_id, max(lt.date_in) as date_newest, lt.notes, lt.transaction_id as trans_id
+                                from (select * from tbl_transaction where notes != 'read' and status!='onCart') as t left join 
+                                (select * from tbl_log_transaction where status not in('request', 'confirm')) as lt
+                                on t.transaction_id=lt.transaction_id where t.user_id=?
+                                group by t.transaction_id order by lt.date_in desc limit 5;`
+                        
+                                db.query(sql, [invoiceData.user_id], (err, dataNotif)=>{
+                                    if (err) return res.status(500).send({message:err.message})
+                                    
+                                    return res.status(200).send({
+                                        cart: 'succeed',
+                                        dataNotif
+                                    })
+                                })
+    
+                            })
                         }).catch((err)=> {
                             return res.status(500).send({message:err.message})
                         })
