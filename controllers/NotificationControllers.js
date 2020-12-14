@@ -335,7 +335,7 @@ module.exports = {
 
     confirmingRequest:(req,res)=>{
         const {product_id, mod_qty,notification_id,location_id,destination_id,notes,transaction_detail_id} = req.body
-        if(notes === 'from user'){
+        if(notes === 'from user'){ // ini untuk si gudang kedua confirm permintaan stok dr gudang pertama yg terdekat ke user
             sql=`insert into tbl_product_detail set ?`
             let obj={
                 product_id:product_id,
@@ -374,13 +374,13 @@ module.exports = {
                     })
                 })
             })
-        }else{
+        }else{ // untuk confirm request qty dari user yg stok nya cukup
             let raw = notes.split(' ')
             let notif_mod = raw[1]
             sql = `select * from tbl_notification n where n.notification_id = ?`
             db.query(sql,notif_mod,(err,result10)=>{
                 if(err) return res.status(500).send({message:err.message})
-                if(result10[0].froms == 0){
+                if(result10[0].froms == 0){  
                     sql=`insert into tbl_product_detail set ?`
                     let obj={
                         product_id:product_id,
@@ -461,35 +461,35 @@ module.exports = {
                                     sql = `insert into tbl_log_transaction set ?`
                                     db.query(sql,data,(err)=>{
                                         if(err) return res.status(500).send({message:err.message})
-                                        sql =`insert into tbl_log_transaction (activities, status, date_in,user_id, transaction_id, notes, product_id) values ?`
-                                        let data = [
-                                            [
-                                                'tbl_notification',
-                                                'confirm',
-                                                Date.now(),
-                                                null,
-                                                idTrans,
-                                                `notification_id ${notification_id}`,
-                                                product_id
-                                            ],
-                                            [
-                                                'tbl_transaction',
-                                                temp.status,
-                                                Date.now(),
-                                                idUser,
-                                                idTrans,
-                                                null,
-                                                null
-                                            ],
-                                        ]
-                                        // data = {
-                                        //     activities : 'tbl_notification',
-                                        //     status : 'confirm',
-                                        //     date_in : Date.now(),
-                                        //     product_id,
-                                        //     notes : `notification_id ${notification_id}`
-                                        // }
-                                        // sql = `insert into tbl_log_transaction set ?`
+                                        // sql =`insert into tbl_log_transaction (activities, status, date_in,user_id, transaction_id, notes, product_id) values ?`
+                                        // let data = [
+                                        //     [
+                                        //         'tbl_notification',
+                                        //         'confirm',
+                                        //         Date.now(),
+                                        //         null,
+                                        //         idTrans,
+                                        //         `notification_id ${notification_id}`,
+                                        //         product_id
+                                        //     ],
+                                        //     [
+                                        //         'tbl_transaction',
+                                        //         temp.status,
+                                        //         Date.now(),
+                                        //         idUser,
+                                        //         idTrans,
+                                        //         null,
+                                        //         null
+                                        //     ],
+                                        // ]
+                                        data = {
+                                            activities : 'tbl_notification',
+                                            status : 'confirm',
+                                            date_in : Date.now(),
+                                            product_id,
+                                            notes : `notification_id ${notification_id}`
+                                        }
+                                        sql = `insert into tbl_log_transaction set ?`
                                         db.query(sql,[data],(err)=>{
                                             if(err) return res.status(500).send({message:err.message})
                                             sql = `select * from tbl_notification where notification_id = ?`
