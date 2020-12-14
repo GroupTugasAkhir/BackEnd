@@ -175,7 +175,7 @@ module.exports = {
                 //     })
                 // })
             }
-            // return res.send('your item is on the way')
+            return res.send('your item is on the way')
         })
     },
 
@@ -263,6 +263,7 @@ module.exports = {
         group by product_id, location_id`
         db.query(sql,[location_id,product_id],(err,result)=>{
             if(err) return res.status(500).send({message:err.message})
+            console.log('masuk sini')
             let temp = req_quantity - result[0].stock
             var data = {
                 transaction_detail_id : transaction_detail_id,
@@ -380,8 +381,10 @@ module.exports = {
             sql = `select * from tbl_notification n where n.notification_id = ?`
             db.query(sql,notif_mod,(err,result10)=>{
                 if(err) return res.status(500).send({message:err.message})
+                console.log('ke sini A')
                 if(result10[0].froms == 0){  
                     sql=`insert into tbl_product_detail set ?`
+                    
                     let obj={
                         product_id:product_id,
                         location_id: location_id,
@@ -390,6 +393,7 @@ module.exports = {
                         notes:`from ${destination_id}`,
                         quantity: mod_qty
                     }
+                    console.log(obj)
                     db.query(sql,obj,(err)=>{
                         if(err) return res.status(500).send({message:err.message})
                         console.log('masuk opsi ini')

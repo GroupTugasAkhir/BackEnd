@@ -116,7 +116,7 @@ module.exports = {
                 sql = `select * from tbl_location where longitude = ? and latitude = ?`
                 db.query(sql, [invoiceData.matchLoc.longitude, invoiceData.matchLoc.latitude], (err, locationRes)=> {
                     if (err) return res.status(500).send({message:err.message})
-
+                    console.log(locationRes[0]);
                     sql = `update tbl_transaction set ? where transaction_id = ${db.escape(invoiceData.idtrans)}`
                     let updateTransData = {
                         date_in: Date.now(),

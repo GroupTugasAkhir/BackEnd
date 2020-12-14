@@ -775,23 +775,35 @@ module.exports = {
             if(results.length){
                 sql = `Update tbl_transaction set ? where transaction_id = ${db.escape(id)}`
                 let dataUpdate = {
-                    status: 'paymentCompleted'
+                    status: 'paymentCompleted',
+                    notes:'noread'
                 }
                 db.query(sql, dataUpdate, (err)=>{
                     if(err)return res.status(500).send(err)
-                    
-                    let sql = `select trans.*, transdet.total_price from
-                    (select t.transaction_id, t.date_in, t.status, u.user_id, u.username, 
-                    t.payment_proof, t.method, t.location_id, l.location_name
-                    from tbl_transaction t join tbl_user u on t.user_id=u.user_id
-                    join tbl_location l on t.location_id=l.location_id) as trans
-                    join (select transaction_id, sum(price*quantity) as total_price
-                    from tbl_transaction_detail group by transaction_id) as transdet 
-                    on trans.transaction_id = transdet.transaction_id;`
-                    db.query(sql, (err, results)=>{
+                    let insertLogTrans = {
+                        activities: 'tbl_transaction',
+                        status: dataUpdate.status,
+                        date_in: Date.now(),
+                        transaction_id: id
+                    }
+                    sql = `insert into tbl_log_transaction set ?`
+                    db.query(sql, insertLogTrans, (err)=>{
                         if(err)return res.status(500).send(err)
-                        return res.status(200).send(results)
+
+                        let sql = `select trans.*, transdet.total_price from
+                        (select t.transaction_id, t.date_in, t.status, u.user_id, u.username, 
+                        t.payment_proof, t.method, t.location_id, l.location_name
+                        from tbl_transaction t join tbl_user u on t.user_id=u.user_id
+                        join tbl_location l on t.location_id=l.location_id) as trans
+                        join (select transaction_id, sum(price*quantity) as total_price
+                        from tbl_transaction_detail group by transaction_id) as transdet 
+                        on trans.transaction_id = transdet.transaction_id;`
+                        db.query(sql, (err, results)=>{
+                            if(err)return res.status(500).send(err)
+                            return res.status(200).send(results)
+                        })
                     })
+                    
                 })
             }else{
                 return res.status(500).send('transaction tidak ada')

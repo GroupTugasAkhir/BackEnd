@@ -283,11 +283,20 @@ module.exports = {
     getProgress: (req, res) => {
         const {id} = req.params // transaction_id
         let sql = `select distinct t.transaction_id, t.date_in as trans_code,t.status, t.user_id
-        , lt.log_id, lt.status as status_log, lt.date_in, lt.notes, lt.transaction_id as trans_id
+        , lt.log_id, lt.status as status_log, date_log, lt.notes, lt.transaction_id as trans_id
         from tbl_transaction t left join 
-        (select * from tbl_log_transaction where status not in('request', 'confirm')) as lt
+        (select *, max(date_in) as date_log from tbl_log_transaction where status not in('request', 'confirm')
+        group by status, transaction_id
+        ) as lt
         on t.transaction_id=lt.transaction_id where t.transaction_id=${db.escape(id)}
-        order by lt.date_in desc;`
+        order by lt.date_log desc;`
+
+        // `select distinct t.transaction_id, t.date_in as trans_code,t.status, t.user_id
+        // , lt.log_id, lt.status as status_log, lt.date_in, lt.notes, lt.transaction_id as trans_id
+        // from tbl_transaction t left join 
+        // (select * from tbl_log_transaction where status not in('request', 'confirm')) as lt
+        // on t.transaction_id=lt.transaction_id where t.transaction_id=${db.escape(id)}
+        // order by lt.date_in desc;`
 
         db.query(sql, (err, dataProgress)=>{
             if (err) return res.status(500).send({message:err.message})
