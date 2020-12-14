@@ -89,6 +89,7 @@ module.exports = {
                 join tbl_product p on pc.product_id = p.product_id ;`
                 db.query(sql, (err, datarefcategory)=>{
                     if (err) return res.status(500).send(err)
+                    console.log({dataproduct, datacategory, datarefcategory})
                     return res.status(200).send({dataproduct, datacategory, datarefcategory})
                 })
             })
