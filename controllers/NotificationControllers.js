@@ -255,7 +255,7 @@ module.exports = {
     },
 
     requestHandling:(req,res)=>{
-        const {location_id,product_id,req_quantity,transaction_detail_id, notification_id} = req.body
+        const {location_id,product_id,req_quantity,transaction_detail_id, notification_id,transaction_id} = req.body
         let sql = `SELECT pd.product_id, pd.location_id,pd.status, sum(pd.quantity) as stock, p.product_name, p.image FROM tbl_product_detail pd
         inner join tbl_product p
         on p.product_id = pd.product_id
@@ -325,7 +325,66 @@ module.exports = {
                             sql = `update tbl_notification set ? where notification_id = ?`
                             db.query(sql,[param,notification_id],(err)=>{
                                 if(err) return res.status(500).send({message:err.message})
-                                return res.send('request have been made')
+                                // return res.send('request have been made')
+                                sql = `select n.notification_id, n.froms, n.destination, n.quantity as req_qty, n.status, n.notes,
+                                td.transaction_detail_id, td.transaction_id,
+                                p.product_name, p.image, jt.stock, p.product_id
+                                from tbl_notification n
+                                inner join tbl_transaction_detail td
+                                on td.transaction_detail_id = n.transaction_detail_id
+                                inner join tbl_product p 
+                                on p.product_id = td.product_id
+                                inner join (select pd.product_id, sum(pd.quantity) as stock, location_id from tbl_product_detail pd
+                                where pd.location_id = ?
+                                group by pd.product_id, pd.location_id) jt
+                                on jt.product_id = p.product_id
+                                where jt.location_id = ?
+                                and transaction_id = ?
+                                and n.froms = 0
+                                and status = 'request'
+                                and notes != 'waitingConfirmation'`
+                                db.query(sql,[location_id,location_id,transaction_id],(err,result1)=>{
+                                    if(err) return res.status(500).send({message:err.message})
+                                    sql = `select n.notification_id, n.froms, n.destination, n.quantity as req_qty, n.status, n.notes,
+                                    td.transaction_detail_id, td.transaction_id,
+                                    p.product_name, p.product_id, p.image
+                                    from tbl_notification n
+                                    inner join tbl_transaction_detail td
+                                    on td.transaction_detail_id = n.transaction_detail_id
+                                    inner join tbl_product p 
+                                    on p.product_id = td.product_id
+                                    inner join (select pd.product_id, sum(pd.quantity) as stock, location_id from tbl_product_detail pd
+                                    where pd.location_id = ?
+                                    group by pd.product_id, pd.location_id) jt
+                                    on jt.product_id = p.product_id
+                                    where jt.location_id = ?
+                                    and transaction_id = ?
+                                    and n.froms = 0
+                                    and status = 'confirm'`
+                                    db.query(sql,[location_id,location_id,transaction_id],(err,result2)=>{
+                                        if(err) return res.status(500).send({message:err.message})
+                                        sql = `select n.notification_id, n.froms, n.destination, n.quantity as req_qty, n.status, n.notes,
+                                        td.transaction_detail_id, td.transaction_id,
+                                        p.product_name, p.product_id, p.image
+                                        from tbl_notification n
+                                        inner join tbl_transaction_detail td
+                                        on td.transaction_detail_id = n.transaction_detail_id
+                                        inner join tbl_product p 
+                                        on p.product_id = td.product_id
+                                        inner join (select pd.product_id, sum(pd.quantity) as stock, location_id from tbl_product_detail pd
+                                        where pd.location_id = ?
+                                        group by pd.product_id, pd.location_id) jt
+                                        on jt.product_id = p.product_id
+                                        where jt.location_id = ?
+                                        and transaction_id = ?
+                                        and n.froms = 0
+                                        and notes = 'waitingConfirmation';`
+                                        db.query(sql,[location_id,location_id,transaction_id],(err,result3)=>{
+                                            if(err) return res.status(500).send({message:err.message})
+                                            return res.send([result1,result2,result3])
+                                        })
+                                    })
+                                })
                             })
                         })
                     })
@@ -606,7 +665,7 @@ module.exports = {
     },
 
     confirmUserReq:(req,res)=>{
-        const {product_id, mod_qty,trx_detail_id,location_id} = req.body
+        const {product_id, mod_qty,trx_detail_id,location_id,transaction_id} = req.body
         sql=`insert into tbl_product_detail set ?`
         let obj={
             product_id:product_id,
@@ -641,7 +700,66 @@ module.exports = {
                     sql = `insert into tbl_log_transaction set ?`
                     db.query(sql,data,(err)=>{
                         if(err) return res.status(500).send({message:err.message})
-                        return res.send('confirmed already')
+                        // return res.send('confirmed already')
+                        sql = `select n.notification_id, n.froms, n.destination, n.quantity as req_qty, n.status, n.notes,
+                        td.transaction_detail_id, td.transaction_id,
+                        p.product_name, p.image, jt.stock, p.product_id
+                        from tbl_notification n
+                        inner join tbl_transaction_detail td
+                        on td.transaction_detail_id = n.transaction_detail_id
+                        inner join tbl_product p 
+                        on p.product_id = td.product_id
+                        inner join (select pd.product_id, sum(pd.quantity) as stock, location_id from tbl_product_detail pd
+                        where pd.location_id = ?
+                        group by pd.product_id, pd.location_id) jt
+                        on jt.product_id = p.product_id
+                        where jt.location_id = ?
+                        and transaction_id = ?
+                        and n.froms = 0
+                        and status = 'request'
+                        and notes != 'waitingConfirmation'`
+                        db.query(sql,[location_id,location_id,transaction_id],(err,result1)=>{
+                            if(err) return res.status(500).send({message:err.message})
+                            sql = `select n.notification_id, n.froms, n.destination, n.quantity as req_qty, n.status, n.notes,
+                            td.transaction_detail_id, td.transaction_id,
+                            p.product_name, p.product_id, p.image
+                            from tbl_notification n
+                            inner join tbl_transaction_detail td
+                            on td.transaction_detail_id = n.transaction_detail_id
+                            inner join tbl_product p 
+                            on p.product_id = td.product_id
+                            inner join (select pd.product_id, sum(pd.quantity) as stock, location_id from tbl_product_detail pd
+                            where pd.location_id = ?
+                            group by pd.product_id, pd.location_id) jt
+                            on jt.product_id = p.product_id
+                            where jt.location_id = ?
+                            and transaction_id = ?
+                            and n.froms = 0
+                            and status = 'confirm'`
+                            db.query(sql,[location_id,location_id,transaction_id],(err,result2)=>{
+                                if(err) return res.status(500).send({message:err.message})
+                                sql = `select n.notification_id, n.froms, n.destination, n.quantity as req_qty, n.status, n.notes,
+                                td.transaction_detail_id, td.transaction_id,
+                                p.product_name, p.product_id, p.image
+                                from tbl_notification n
+                                inner join tbl_transaction_detail td
+                                on td.transaction_detail_id = n.transaction_detail_id
+                                inner join tbl_product p 
+                                on p.product_id = td.product_id
+                                inner join (select pd.product_id, sum(pd.quantity) as stock, location_id from tbl_product_detail pd
+                                where pd.location_id = ?
+                                group by pd.product_id, pd.location_id) jt
+                                on jt.product_id = p.product_id
+                                where jt.location_id = ?
+                                and transaction_id = ?
+                                and n.froms = 0
+                                and notes = 'waitingConfirmation';`
+                                db.query(sql,[location_id,location_id,transaction_id],(err,result3)=>{
+                                    if(err) return res.status(500).send({message:err.message})
+                                    return res.send([result1,result2,result3])
+                                })
+                            })
+                        })
                     })
                 })
             })

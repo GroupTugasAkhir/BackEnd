@@ -1,6 +1,7 @@
 const { db } = require('./../connection')
 const fs = require('fs')
 const {uploader} = require('./../helpers/uploader')
+const haversine = require('haversine')
 
 
 const updateQuery = (sql) => {
@@ -30,18 +31,58 @@ module.exports = {
         db.query(sql, [idUser], (err)=> {
             if (err) return res.status(500).send({message:err.message})
 
-            sql = `select * from tbl_location where longitude = ? and latitude = ?`
-            db.query(sql, [matchLoc.longitude, matchLoc.latitude], (err, locationRes)=> {
+            // sql = `select * from tbl_location where longitude = ? and latitude = ?`
+            // db.query(sql, [matchLoc.longitude, matchLoc.latitude], (err, locationRes)=> {
+            sql = `select * from tbl_location`
+            db.query(sql, (err, locationRes)=> {
                 if (err) return res.status(500).send({message:err.message})
+
+                // haversine cek distance
+                let start = {
+                    latitude : matchLoc.longitude,
+                    longitude : matchLoc.latitude
+                }
+
+                let comparison = locationRes.filter((val)=>{
+                    return val.longitude !== matchLoc.longitude && val.latitude !== matchLoc.latitude
+                })
+
+                let init_location = locationRes.filter((val)=>{
+                    return val.longitude === matchLoc.longitude && val.latitude === matchLoc.latitude
+                })
+
+                let end = {}
+                let distance = 0
+                let alternateBranch = comparison.map((val)=>{
+                    end = {
+                        latitude : val.latitude,
+                        longitude : val.longitude
+                    }
+                    distance = haversine(start,end)
+                    return {
+                        location_id : val.location_id,
+                        distance
+                    }
+                }) 
+                alternateBranch.sort((a,b) => (a.distance > b.distance) ? 1 : ((b.distance > a.distance) ? -1 : 0)); 
+                let alternateToString=''
+                alternateBranch.map((val)=>{
+                    alternateToString += `${val.location_id}, `
+                })
+                console.log(alternateBranch)
+                console.log(alternateToString)
+                // haversine cek distance
 
                 sql = `update tbl_transaction set ? where transaction_id = ${db.escape(idtrans)}`
                 let updateTransData = {
                     date_in: Date.now(),
                     status: 'paymentCompleted',
                     payment_proof,
-                    location_id: locationRes[0].location_id,
+                    // location_id: locationRes[0].location_id,
+                    location_id: init_location[0].location_id,
                     method: 'cc',
-                    notes: 'noread'
+                    notes: 'noread',
+                    alternate_branch: alternateToString,
                 }
         
                 db.query(sql, updateTransData, (err)=> {

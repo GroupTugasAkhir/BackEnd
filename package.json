@@ -19,6 +19,7 @@
     "express": "^4.17.1",
     "express-bearer-token": "^2.4.0",
     "handlebars": "^4.7.6",
+    "haversine": "^1.1.1",
     "jsonwebtoken": "^8.5.1",
     "multer": "^1.4.2",
     "mysql": "github:mysqljs/mysql",
