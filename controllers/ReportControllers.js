@@ -47,5 +47,16 @@ module.exports = {
             if(err) return res.status(500).send({message:err.message})
             return res.send(result)
         })
+    },
+    getTotalTrxPerBranch:(req,res)=>{
+        let sql = `SELECT t.transaction_id, t.status, t.location_id, sum(td.price) as total FROM tbl_transaction t
+        inner join tbl_transaction_detail td
+        on td.transaction_id = t.transaction_id
+        where t.status = 'completed'
+        group by t.location_id, t.status`
+        db.query(sql,(err,result)=>{
+            if(err) return res.status(500).send({message:err.message})
+            return res.send(result)
+        })
     }
 }
