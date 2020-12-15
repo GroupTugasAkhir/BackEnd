@@ -8,11 +8,12 @@ const mysql = require('mysql')
 module.exports = {
     addProduct: (req, res) => {
         try {
-            // console.log('asas')
+            console.log('asas')
             const path = '/product'
             const upload = uploader(path, 'PROD').fields([{name: 'image'}])
             upload(req, res, (err)=>{
                 if (err){
+                    console.log(err)
                     return res.status(500).json({message: 'Upload picture failed', error: err.message})
                 }
                 console.log('berhasil upload')
@@ -29,7 +30,6 @@ module.exports = {
                     description: data.description,
                     date_in: Date.now()
                 }
-
                 console.log(dataInsert)
                 db.query(`insert into tbl_product set ?`, dataInsert, (err, resultAddProduct)=>{
                     if(err) {
@@ -39,6 +39,7 @@ module.exports = {
                         console.log(err)
                         return res.status(500).send(err)
                     }
+                    console.log('sukses insert tbl_product')
                     sql="insert into ref_product_category (product_id, category_id) values ?"
                     
                     var insertRefCategory = data.categoryRefCart.map((val,index)=>{
@@ -48,17 +49,24 @@ module.exports = {
                             val.value
                         ]
                     })
+                    console.log(insertRefCategory)
                     db.query(sql, [insertRefCategory], (err)=>{
                         if (err) return res.status(500).send(err)
                         db.query(`select * from tbl_product`, (err, dataProduct)=>{
-                            if (err) return res.status(500).send(err)
+                            if (err) {
+                                console.log(err)
+                                return res.status(500).send(err)
+                            }
 
                             sql = `select p.product_id, c.category_id, p.product_name, c.category_name
                             from tbl_category c join ref_product_category pc on c.category_id = pc.category_id
                             join tbl_product p on pc.product_id = p.product_id ;`
                             db.query(sql, (err, datarefcategory)=>{
-                                if (err) return res.status(500).send(err)
-
+                                if (err) {
+                                    console.log(err)
+                                    return res.status(500).send(err)
+                                }
+                                console.log('sini')
                                 return res.status(200).send({dataProduct, datarefcategory})
                             })
                         })
@@ -89,7 +97,7 @@ module.exports = {
                 join tbl_product p on pc.product_id = p.product_id ;`
                 db.query(sql, (err, datarefcategory)=>{
                     if (err) return res.status(500).send(err)
-                    console.log({dataproduct, datacategory, datarefcategory})
+                    // console.log({dataproduct, datacategory, datarefcategory})
                     return res.status(200).send({dataproduct, datacategory, datarefcategory})
                 })
             })
