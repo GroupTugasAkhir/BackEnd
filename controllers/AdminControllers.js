@@ -410,6 +410,14 @@ module.exports = {
             return res.status(200).send(dataproduct)
         })
     },
+    getAllProduct: (req, res)=>{
+        let sql = `select distinct (product_id), product_name, image, description, price, date_in from tbl_product
+        order by product_name`
+        db.query(sql, (err, dataproduct)=>{
+            if (err) return res.status(500).send(err)
+            return res.status(200).send(dataproduct)
+        })
+    },
 
     getProductbyPopular: (req, res)=>{
         let sql = `select p.product_id, p.product_name, p.price, avg(c.rating) as avg_rating, p.image from tbl_comment c

@@ -12,6 +12,7 @@ Router.delete('/deleteProduct/:id', AdminControllers.deleteProduct)
 
 //For Home Page
 Router.get('/getAllProductCount', AdminControllers.getAllProductCount)
+Router.get('/getAllProduct', AdminControllers.getAllProduct)
 Router.get('/getCategProductCount', AdminControllers.getCategProductCount)
 Router.get('/getProduct/:id', AdminControllers.getProductbyId)
 Router.get('/getProductbyPage/:page', AdminControllers.getProductbyPage)
