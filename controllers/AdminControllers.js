@@ -120,6 +120,20 @@ module.exports = {
         })
     },
 
+    getProductbywh: (req, res)=> {
+        const {prodID} = req.params
+        let sql = `select sum(pd.quantity) as whstock, l.location_name from tbl_product_detail pd
+        join tbl_location l on pd.location_id = l.location_id
+        where pd.product_id = ${db.escape(prodID)} and !(pd.status in ('add', 'modify') and pd.notes is not null)
+        group by pd.location_id;`
+
+        db.query(sql, (err, theres)=> {
+            if (err) return res.status(500).send({message:err.message})
+
+            return res.send(theres)
+        })
+    },
+
     getStock: (req, res) => { //get stock and onpackaging stock from current WH
         const {id} = req.params // product_id
         let sql = `select * from tbl_location`
@@ -381,6 +395,18 @@ module.exports = {
         having totalprod > 0
         limit ${(page-1)*6},6;`
         // let sql =`select * from tbl_product limit ${(page-1)*5},8`
+        db.query(sql,(err,result)=>{
+            if(err)return res.status(500).send(err)
+            return res.status(200).send(result)
+        })
+    },
+
+    getAllProductMobile:(req,res)=>{
+        let sql = `select p.*, sum(pd.quantity) as totalprod from tbl_product p
+        join tbl_product_detail pd on pd.product_id = p.product_id
+        where !(pd.status in ('add', 'modify') and pd.notes is not null)
+        group by pd.product_id
+        having totalprod > 0`
         db.query(sql,(err,result)=>{
             if(err)return res.status(500).send(err)
             return res.status(200).send(result)
